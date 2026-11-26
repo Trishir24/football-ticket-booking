@@ -1,0 +1,2780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VYBK Salt Lake Stadium — MBSG × TRISHIR Ultra-Realistic 3D Booking</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            mbsgGreen: '#004d26',
+            mbsgMaroon: '#6b001a',
+            vybkNavy: '#141d2e',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- GSAP for Cinematic Camera Motion -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <!-- Three.js ES Modules Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #090c12;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    /* Filmic Broadcast Camera Vignette */
+    #cinema-vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 58%, rgba(4, 7, 12, 0.58) 100%);
+    }
+    /* Cinematic Intro Letterbox Bars */
+    .letterbox-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      height: 8.5vh;
+      background: #04060a;
+      z-index: 40;
+      transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+      pointer-events: none;
+    }
+    #letterbox-top { top: 0; transform: translateY(-100%); }
+    #letterbox-bottom { bottom: 0; transform: translateY(100%); }
+    body.intro-active #letterbox-top { transform: translateY(0); }
+    body.intro-active #letterbox-bottom { transform: translateY(0); }
+
+    /* Premium Dark-Glass Ticketing UI */
+    .glass-dark {
+      background: rgba(10, 14, 21, 0.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .live-dot {
+      animation: pulseDot 1.6s infinite ease-in-out;
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      #printable-ticket, #printable-ticket * { visibility: visible !important; }
+      #printable-ticket {
+        position: fixed !important;
+        inset: 0 !important;
+        margin: auto !important;
+        width: 100% !important;
+        max-width: 440px !important;
+        height: fit-content !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="text-white">
+
+  <!-- 3D WebGL Viewport -->
+  <div id="canvas-container"></div>
+
+  <!-- Filmic Lens Vignette -->
+  <div id="cinema-vignette"></div>
+
+  <!-- Cinematic Intro Letterbox Bars -->
+  <div id="letterbox-top" class="letterbox-bar flex items-end justify-between px-6 pb-2.5">
+    <span class="text-[10px] sm:text-xs font-mono tracking-[0.24em] text-amber-200/85 uppercase">LIVE AERIAL DRONE &bull; 4K HDR</span>
+    <span class="text-[10px] sm:text-xs font-mono tracking-[0.18em] text-white/60">22.5689° N, 88.4092° E</span>
+  </div>
+  <div id="letterbox-bottom" class="letterbox-bar flex items-start justify-center pt-2.5">
+    <span class="text-[11px] sm:text-xs font-bold tracking-[0.28em] text-white/85 uppercase">VIVEKANANDA YUBA BHARATI KRIRANGAN &bull; KOLKATA</span>
+  </div>
+
+  <!-- Skip Intro Button -->
+  <button
+    id="skip-intro-btn"
+    onclick="window.skipIntroAnimation()"
+    class="fixed bottom-[11vh] right-5 hidden glass-dark hover:bg-white/15 active:scale-95 transition-all rounded-full px-4 py-2 text-xs font-bold tracking-wider uppercase text-white/95 flex items-center gap-2 shadow-2xl"
+    style="z-index: 45;"
+  >
+    <span>Skip Intro</span>
+    <svg class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path d="M5 4l10 8-10 8V4z"></path><path d="M19 5v14"></path>
+    </svg>
+  </button>
+
+  <!-- Minimal Broadcast Loading Screen -->
+  <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-[#080c13] via-[#10141c] to-[#1a0b10] transition-opacity duration-700 px-6 text-center">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-5">
+      <span class="w-2 h-2 rounded-full bg-red-500 live-dot"></span>
+      <span class="text-[10px] font-mono tracking-[0.22em] text-white/75 uppercase">Photorealistic 3D Arena Engine</span>
+    </div>
+    <h1 class="text-xl sm:text-3xl font-black tracking-[0.12em] text-white uppercase">Vivekananda Yuba Bharati Krirangan</h1>
+    <p class="text-xs sm:text-sm font-semibold tracking-[0.28em] uppercase text-amber-300/90 mt-1.5">Salt Lake Stadium &bull; Kolkata</p>
+
+    <div class="w-72 max-w-[85vw] h-1.5 bg-white/10 rounded-full overflow-hidden mt-7 border border-white/10">
+      <div id="loading-bar" class="h-full w-0 bg-gradient-to-r from-[#006837] via-amber-400 to-[#800020] rounded-full transition-all duration-300"></div>
+    </div>
+    <p id="loading-text" class="text-[11px] font-mono text-white/55 mt-3 tracking-wide">Initializing PBR environment &amp; golden-hour lighting...</p>
+  </div>
+
+  <!-- Main Interactive Ticketing HUD -->
+  <div id="main-hud" class="transition-opacity duration-700 opacity-0 pointer-events-none">
+
+    <!-- Top-Left: VYBK Matchday Arena Header & Breadcrumbs -->
+    <div class="fixed top-3 left-3 sm:top-4 sm:left-4 z-20 flex flex-col gap-2 max-w-[calc(100vw-24px)] sm:max-w-md pointer-events-none">
+      <div class="glass-dark rounded-2xl px-3.5 py-2.5 flex items-center gap-3 shadow-2xl pointer-events-auto">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#004d26] via-[#141d2e] to-[#6b001a] flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
+          <span class="font-black text-xs tracking-tighter text-white">VYBK</span>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span id="sync-dot" class="w-2 h-2 rounded-full bg-emerald-400 live-dot shrink-0"></span>
+            <h2 class="font-extrabold text-xs sm:text-sm tracking-wide uppercase truncate text-white">VYBK Matchday Arena</h2>
+          </div>
+          <p id="sync-status-text" class="text-[10px] sm:text-[11px] font-mono text-amber-200/85 truncate tracking-wider">SALT LAKE STADIUM &bull; SYNCING...</p>
+        </div>
+      </div>
+
+      <!-- Dynamic Interactive Breadcrumb Navigation -->
+      <div id="breadcrumb-bar" class="glass-dark rounded-xl px-3 py-1.5 text-xs font-medium text-white/80 flex items-center flex-wrap gap-1.5 shadow-lg pointer-events-auto w-fit">
+        <button onclick="window.resetToOverview()" class="hover:text-amber-300 transition-colors font-semibold text-white">VYBK Stadium</button>
+      </div>
+    </div>
+
+    <!-- Top-Right: Search, Quick Stand Camera Views, Refresh, My Tickets & Replay -->
+    <div class="fixed top-3 right-3 sm:top-4 sm:right-4 z-20 flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 max-w-[calc(100vw-24px)] sm:max-w-4xl pointer-events-none">
+      <form id="search-form" class="glass-dark rounded-xl flex items-center px-3 py-1.5 shadow-xl pointer-events-auto">
+        <svg class="w-3.5 h-3.5 text-white/50 mr-2 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Search a seat... (N-3, N-3 R14 S8)"
+          class="bg-transparent text-xs text-white placeholder-white/45 focus:outline-none w-36 sm:w-48"
+        />
+      </form>
+
+      <!-- Quick Camera View Buttons -->
+      <div class="glass-dark rounded-xl p-1 hidden md:flex items-center gap-1 shadow-xl pointer-events-auto">
+        <button onclick="window.resetToOverview()" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white/85 hover:bg-white/15 transition-colors">Reset All</button>
+        <button onclick="window.focusStandShowcase('NORTH')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/20 transition-colors">MBSG Stand</button>
+        <button onclick="window.focusStandShowcase('SOUTH')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-amber-300 hover:bg-amber-500/20 transition-colors">TRISHIR Stand</button>
+      </div>
+
+      <button
+        onclick="window.syncSeatsFromBackend(true)"
+        class="glass-dark hover:bg-white/15 active:scale-95 transition-all rounded-xl px-2.5 py-2 text-xs font-semibold flex items-center gap-1.5 shadow-xl pointer-events-auto"
+        title="Refresh live seats from backend"
+      >
+        <svg id="refresh-icon" class="w-3.5 h-3.5 text-sky-300" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+          <path d="M3 3v5h5"></path>
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+          <path d="M16 16h5v5"></path>
+        </svg>
+        <span class="hidden xl:inline">Refresh</span>
+      </button>
+
+      <button
+        onclick="window.startIntroAnimation()"
+        class="glass-dark hover:bg-white/15 active:scale-95 transition-all rounded-xl px-2.5 py-2 text-xs font-semibold flex items-center gap-1.5 shadow-xl pointer-events-auto"
+        title="Replay Drone Entry"
+      >
+        <svg class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <span class="hidden xl:inline">Replay Entry</span>
+      </button>
+
+      <button
+        onclick="window.openMyTicketsModal()"
+        class="bg-gradient-to-r from-[#004d26] to-[#6b001a] hover:brightness-115 active:scale-95 transition-all rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 shadow-xl border border-white/20 pointer-events-auto"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path>
+        </svg>
+        <span>My Tickets</span>
+        <span id="ticket-count-badge" class="ml-0.5 px-1.5 py-0.2 rounded-full bg-white text-slate-900 text-[10px] font-extrabold">0</span>
+      </button>
+    </div>
+
+    <!-- Mobile Quick Stand Switcher -->
+    <div class="fixed bottom-12 left-1/2 -translate-x-1/2 z-20 flex md:hidden items-center gap-1.5 glass-dark rounded-full p-1 shadow-xl pointer-events-auto">
+      <button onclick="window.resetToOverview()" class="px-3 py-1 rounded-full text-[11px] font-bold text-white/90 hover:bg-white/15">Reset</button>
+      <button onclick="window.focusStandShowcase('NORTH')" class="px-3 py-1 rounded-full text-[11px] font-bold text-emerald-300 bg-emerald-500/15">MBSG</button>
+      <button onclick="window.focusStandShowcase('SOUTH')" class="px-3 py-1 rounded-full text-[11px] font-bold text-amber-300 bg-amber-500/15">TRISHIR</button>
+    </div>
+
+    <!-- Bottom Legend & Pricing Bar -->
+    <div class="fixed bottom-3 left-3 right-3 z-20 flex items-center justify-between gap-3 pointer-events-none">
+      <div class="glass-dark rounded-xl px-3.5 py-2 hidden lg:flex items-center gap-3.5 text-[11px] font-medium text-white/80 shadow-lg pointer-events-auto">
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#004d26] border border-white/25"></span>MBSG</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#6b001a] border border-white/25"></span>Maroon</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#ffffff] border border-slate-400"></span>Mosaic / VIP</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#f97316]"></span>Selected</div>
+        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#232730] border border-white/15"></span>Booked</div>
+        <span class="text-white/25">|</span>
+        <span class="text-emerald-400 font-bold">₹450 – ₹2,500</span>
+      </div>
+
+      <div id="bottom-hint" class="mx-auto lg:mx-0 glass-dark rounded-full px-4 py-1.5 text-[11px] sm:text-xs text-white/85 shadow-lg pointer-events-none whitespace-nowrap max-w-[94vw] truncate">
+        Drag to orbit &bull; Scroll to zoom &bull; Click any seating block to select tightly-packed seats
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Hover Tooltip -->
+  <div id="hover-tooltip" class="fixed z-30 pointer-events-none hidden glass-dark rounded-xl px-3.5 py-2 text-xs font-semibold text-white shadow-2xl border border-white/20 whitespace-nowrap">
+  </div>
+
+  <!-- Floating Dark-Glass Ticket Preview Card -->
+  <div id="seat-preview-card" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-30 hidden w-[calc(100vw-24px)] max-w-sm glass-dark text-white rounded-2xl shadow-2xl overflow-hidden border border-white/20 transition-all">
+    <div class="bg-gradient-to-r from-[#004d26]/95 via-[#141d2e]/95 to-[#6b001a]/95 px-4 py-3 flex items-center justify-between border-b border-white/10">
+      <div>
+        <p id="card-stand-name" class="text-[10px] font-bold uppercase tracking-widest text-amber-200">MBSG North Stand</p>
+        <h3 id="card-block-title" class="text-base font-black leading-tight mt-0.5">Block N-3 &bull; Middle Tier</h3>
+      </div>
+      <button onclick="window.clearSeatSelection()" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <div class="p-4">
+      <div class="grid grid-cols-3 gap-2 text-center bg-white/5 border border-white/10 rounded-xl p-2.5 mb-4">
+        <div>
+          <span class="block text-[10px] font-bold uppercase text-white/50">Row</span>
+          <span id="card-row" class="text-base font-extrabold text-white">16</span>
+        </div>
+        <div class="border-x border-white/10">
+          <span class="block text-[10px] font-bold uppercase text-white/50">Seat</span>
+          <span id="card-seat" class="text-base font-extrabold text-white">10</span>
+        </div>
+        <div>
+          <span class="block text-[10px] font-bold uppercase text-white/50">Price</span>
+          <span id="card-price" class="text-base font-extrabold text-emerald-400">₹1,250</span>
+        </div>
+      </div>
+      <div class="flex gap-2.5">
+        <button
+          onclick="window.enterSeatPOV()"
+          class="flex-1 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+        >
+          <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          View From Seat
+        </button>
+        <button
+          onclick="window.openCheckoutModal()"
+          class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#004d26] to-[#6b001a] hover:brightness-115 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg transition-all active:scale-95"
+        >
+          Book Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- First-Person POV Floating Action Bar -->
+  <div id="pov-action-bar" class="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 hidden glass-dark rounded-2xl p-2 flex items-center gap-2 shadow-2xl">
+    <button
+      onclick="window.openCheckoutModal()"
+      class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#004d26] to-[#6b001a] hover:brightness-115 text-white text-xs sm:text-sm font-bold shadow-lg transition-all active:scale-95"
+    >
+      Book This Seat
+    </button>
+    <button
+      onclick="window.exitSeatPOV()"
+      class="px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-semibold transition-all active:scale-95"
+    >
+      Back to Block
+    </button>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 hidden glass-dark rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-2xl border border-amber-400/40">
+  </div>
+
+  <!-- Checkout Modal -->
+  <div id="checkout-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-[#0d121a] border border-white/15 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+      <div class="bg-gradient-to-r from-[#004d26] via-[#141d2e] to-[#6b001a] px-6 py-4 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-black text-white">Confirm VYBK Booking</h3>
+          <p class="text-xs text-white/80">Salt Lake Stadium &bull; Instant Digital Pass</p>
+        </div>
+        <button onclick="window.closeCheckoutModal()" class="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <form id="checkout-form" class="p-6 space-y-4">
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p id="checkout-stand" class="text-xs text-amber-300 font-bold uppercase">MBSG North Stand</p>
+            <p id="checkout-seat-info" class="text-sm font-bold text-white mt-0.5">Block N-3 &bull; Row 16 &bull; Seat 10</p>
+          </div>
+          <div class="text-right">
+            <span class="block text-[10px] uppercase text-white/50 font-semibold">Total</span>
+            <span id="checkout-price" class="text-xl font-black text-emerald-400">₹1,250</span>
+          </div>
+        </div>
+
+        <div id="checkout-error" class="hidden rounded-xl bg-rose-950/80 border border-rose-500/50 px-3.5 py-2.5 text-xs text-rose-200"></div>
+
+        <div>
+          <label class="block text-xs font-semibold text-white/70 mb-1">Full Name</label>
+          <input id="customer-name" type="text" required maxlength="100" placeholder="Trishir Mondal" class="w-full rounded-xl bg-white/10 border border-white/15 px-3.5 py-2.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-white/70 mb-1">Email Address</label>
+          <input id="customer-email" type="email" required maxlength="150" placeholder="trishir@example.com" class="w-full rounded-xl bg-white/10 border border-white/15 px-3.5 py-2.5 text-sm text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
+        </div>
+
+        <button id="checkout-submit-btn" type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-[#004d26] to-[#6b001a] hover:brightness-115 font-bold text-sm text-white shadow-lg transition-all active:scale-[0.98]">
+          Confirm &amp; Issue Digital Matchday Pass
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Printable Digital Matchday Ticket Modal -->
+  <div id="ticket-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div id="printable-ticket" class="bg-white text-slate-900 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
+      <div class="bg-gradient-to-r from-[#004d26] via-[#141d2e] to-[#6b001a] p-5 text-white text-center relative">
+        <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-extrabold tracking-widest uppercase mb-1">VYBK Digital Matchday Pass</span>
+        <h3 class="text-lg font-black tracking-wide uppercase">Salt Lake Stadium</h3>
+        <p class="text-[11px] text-amber-200/95 font-semibold">VIVEKANANDA YUBA BHARATI KRIRANGAN</p>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="flex justify-between items-center border-b border-dashed border-slate-300 pb-3">
+          <div>
+            <span class="block text-[10px] font-bold uppercase text-slate-400">Spectator</span>
+            <span id="dt-name" class="text-sm font-extrabold text-slate-800">Trishir Mondal</span>
+          </div>
+          <div class="text-right">
+            <span class="block text-[10px] font-bold uppercase text-slate-400">Booking Code</span>
+            <span id="dt-id" class="text-xs font-mono font-bold text-[#6b001a]">STAD-A1B2C3D4</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-1.5 text-center bg-slate-100 rounded-2xl p-3">
+          <div>
+            <span class="block text-[9px] font-bold uppercase text-slate-400">Gate</span>
+            <span id="dt-gate" class="text-sm font-black text-[#004d26]">3A</span>
+          </div>
+          <div class="border-l border-slate-200">
+            <span class="block text-[9px] font-bold uppercase text-slate-400">Block</span>
+            <span id="dt-block" class="text-sm font-black text-slate-800">N-3</span>
+          </div>
+          <div class="border-l border-slate-200">
+            <span class="block text-[9px] font-bold uppercase text-slate-400">Row</span>
+            <span id="dt-row" class="text-sm font-black text-slate-800">16</span>
+          </div>
+          <div class="border-l border-slate-200">
+            <span class="block text-[9px] font-bold uppercase text-slate-400">Seat</span>
+            <span id="dt-seat" class="text-sm font-black text-slate-800">10</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-600">
+          <span id="dt-stand" class="font-bold text-[#004d26]">MBSG North Stand</span>
+          <span id="dt-price" class="font-extrabold text-slate-900 text-sm">₹1,250</span>
+        </div>
+
+        <div class="pt-1 flex flex-col items-center">
+          <div class="p-2 bg-white border-2 border-slate-200 rounded-xl shadow-inner">
+            <canvas id="ticket-qr-canvas" width="96" height="96"></canvas>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400 mt-1.5 tracking-widest">SCAN AT VYBK ENTRY TURNSTILE</span>
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button onclick="window.print()" class="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all">
+            Download / Print
+          </button>
+          <button onclick="window.closeTicketModal()" class="flex-1 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold transition-all">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Tickets Drawer -->
+  <div id="my-tickets-modal" class="fixed inset-0 z-50 hidden items-center justify-end bg-black/70 backdrop-blur-sm">
+    <div class="bg-[#0d121a] border-l border-white/15 w-full max-w-md h-full flex flex-col shadow-2xl">
+      <div class="bg-gradient-to-r from-[#004d26] via-[#141d2e] to-[#6b001a] px-6 py-4 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-black text-white">My VYBK Tickets</h3>
+          <p class="text-xs text-white/80">Lookup live bookings by customer email</p>
+        </div>
+        <button onclick="window.closeMyTicketsModal()" class="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <form id="tickets-lookup-form" class="p-4 border-b border-white/10 flex gap-2">
+        <input
+          id="tickets-lookup-email"
+          type="email"
+          required
+          placeholder="Enter email to load tickets..."
+          class="flex-1 rounded-xl bg-white/10 border border-white/15 px-3.5 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-400"
+        />
+        <button type="submit" class="rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2 text-xs font-bold transition">
+          Lookup
+        </button>
+      </form>
+      <div id="my-tickets-list" class="flex-1 overflow-y-auto p-5 space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Main Three.js ES Module Application -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const API_BASE = '/api/seats';
+
+    // =========================================================================
+    // 1. HEAVY BOLD 7x9 DOUBLE-STROKE BITMAP FONT FOR CRYSTAL-CLEAR MOSAICS
+    // =========================================================================
+    const BOLD_FONT_7x9 = {
+      M: [
+        '1100011',
+        '1110111',
+        '1111111',
+        '1101011',
+        '1101011',
+        '1100011',
+        '1100011',
+        '1100011',
+        '1100011',
+      ],
+      B: [
+        '1111110',
+        '1111111',
+        '1100011',
+        '1100011',
+        '1111110',
+        '1100011',
+        '1100011',
+        '1111111',
+        '1111110',
+      ],
+      S: [
+        '0111111',
+        '1111111',
+        '1100000',
+        '1111110',
+        '0111111',
+        '0000011',
+        '0000011',
+        '1111111',
+        '1111110',
+      ],
+      G: [
+        '0111111',
+        '1111111',
+        '1100000',
+        '1100000',
+        '1101111',
+        '1101111',
+        '1100011',
+        '1111111',
+        '0111110',
+      ],
+      T: [
+        '1111111',
+        '1111111',
+        '0011100',
+        '0011100',
+        '0011100',
+        '0011100',
+        '0011100',
+        '0011100',
+        '0011100',
+      ],
+      R: [
+        '1111110',
+        '1111111',
+        '1100011',
+        '1100011',
+        '1111110',
+        '1111000',
+        '1101100',
+        '1100110',
+        '1100011',
+      ],
+      I: [
+        '1111111',
+        '1111111',
+        '0011100',
+        '0011100',
+        '0011100',
+        '0011100',
+        '0011100',
+        '1111111',
+        '1111111',
+      ],
+      H: [
+        '1100011',
+        '1100011',
+        '1100011',
+        '1111111',
+        '1111111',
+        '1100011',
+        '1100011',
+        '1100011',
+        '1100011',
+      ],
+    };
+
+    /**
+     * Maps a bold 7x9 word cleanly across the tightly-packed Middle Tier columns.
+     * Both North Stand (-146° -> -34°, facing -Z) and South Stand (+34° -> +146°, facing +Z)
+     * progress left-to-right on screen with increasing colInStand, so mirrorX = false
+     * ensures BOTH "MBSG" and "TRISHIR" read forward left-to-right!
+     */
+    function isBoldMosaicSeat(word, rowInTier, colInStand, tierRows, standCols, scaleX = 1, mirrorX = false) {
+      const charW = 7 * scaleX;
+      const charH = 9;
+      const gap = 2 * scaleX;
+      const wordW = word.length * charW + (word.length - 1) * gap;
+
+      const startCol = Math.floor((standCols - wordW) / 2);
+      const startRow = Math.floor((tierRows - charH) / 2);
+
+      const bmpRow = (tierRows - 1 - rowInTier) - startRow;
+      if (bmpRow < 0 || bmpRow >= charH) return false;
+
+      const effectiveCol = mirrorX ? (standCols - 1 - colInStand) : colInStand;
+      const relCol = effectiveCol - startCol;
+      if (relCol < 0 || relCol >= wordW) return false;
+
+      const charIdx = Math.floor(relCol / (charW + gap));
+      const inCharCol = relCol % (charW + gap);
+      if (inCharCol >= charW) return false;
+
+      const bmpCol = Math.floor(inCharCol / scaleX);
+      const glyph = BOLD_FONT_7x9[word[charIdx]];
+      return glyph ? glyph[bmpRow][bmpCol] === '1' : false;
+    }
+
+    // =========================================================================
+    // 2. GLOBAL STATE & BACKEND / LOCAL SYNC
+    // =========================================================================
+    const STORAGE_KEY_EMAIL = 'vybk_customer_email';
+    const STORAGE_KEY_TICKETS = 'vybk_ultra_tickets_v4';
+
+    let scene, camera, renderer, controls;
+    let seatPanMesh, seatBackMesh, seatMountMesh, selectionBeacon;
+    let ledTex, lakeMesh;
+    let cornerFlags = [];
+    let movingCars = [];
+    let seatsData = [];
+    let seatLookupMap = new Map();
+    let blocksMap = {};
+    let bookedSet = new Set();
+    let userTickets = [];
+    let backendOnline = false;
+
+    let viewMode = 'INTRO'; // 'INTRO' | 'OVERVIEW' | 'BLOCK' | 'POV'
+    let activeBlockId = null;
+    let hoveredSeatIndex = -1;
+    let selectedSeatIndex = -1;
+    let introTween = null;
+    const clock = new THREE.Clock();
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let pointerDownPos = { x: 0, y: 0 };
+
+    // Realistic PBR seat colors
+    const COLOR_MBSG_GREEN = new THREE.Color('#004d26');
+    const COLOR_MBSG_MAROON = new THREE.Color('#6b001a');
+    const COLOR_TRISHIR_NAVY = new THREE.Color('#141d2e');
+    const COLOR_TRISHIR_SLATE = new THREE.Color('#1c263b');
+    const COLOR_VYBK_BLUE = new THREE.Color('#1a2d4d');
+    const COLOR_VYBK_SLATE = new THREE.Color('#273e63');
+    const COLOR_MOSAIC_WHITE = new THREE.Color('#ffffff');
+    const COLOR_BOOKED = new THREE.Color('#232730');
+    const COLOR_HOVERED = new THREE.Color('#fbbf24');
+    const COLOR_SELECTED = new THREE.Color('#f97316');
+
+    const OVERVIEW_CAM_POS = { x: 26, y: 128, z: 112 };
+    const OVERVIEW_TARGET = { x: 0, y: 4, z: 0 };
+
+    function makeBackendSeatKey(block, row, seat) {
+      return `${String(block).trim().toUpperCase()}|${Number(row)}|${Number(seat)}`;
+    }
+
+    // =========================================================================
+    // 3. PROCEDURAL HIGH-RES PBR CANVAS TEXTURES (DIFFUSE + BUMP)
+    // =========================================================================
+    function createInfieldAndTrackTexture() {
+      const W = 2048, H = 1400;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      const cx = W / 2, cy = H / 2;
+
+      ctx.fillStyle = '#383e45';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.strokeStyle = '#5c636b';
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 968, 650, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // VYBK 8-Lane Weathered Terracotta Synthetic Rubber Athletics Track
+      const trackOuterRx = 955, trackOuterRy = 638;
+      const trackInnerRx = 720, trackInnerRy = 425;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, trackOuterRx, trackOuterRy, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#8b3727';
+      ctx.fill();
+      ctx.clip();
+
+      for (let i = 0; i < 42000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,215,195,0.06)' : 'rgba(35,10,6,0.09)';
+        ctx.fillRect(Math.random() * W, Math.random() * H, 3, 3);
+      }
+      ctx.restore();
+
+      // Crisp White 8-Lane Markings + Stagger Start Marks
+      ctx.strokeStyle = 'rgba(248, 250, 252, 0.9)';
+      for (let l = 0; l <= 8; l++) {
+        const t = l / 8;
+        const rx = trackInnerRx + (trackOuterRx - trackInnerRx) * t;
+        const ry = trackInnerRy + (trackOuterRy - trackInnerRy) * t;
+        ctx.lineWidth = (l === 0 || l === 8) ? 5 : 2.2;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Finish line & stagger ticks
+      ctx.strokeStyle = 'rgba(255,255,255,0.96)';
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(cx + 215, cy + trackInnerRy);
+      ctx.lineTo(cx + 215, cy + trackOuterRy);
+      ctx.stroke();
+
+      ctx.lineWidth = 3;
+      for (let l = 0; l < 8; l++) {
+        const t = (l + 0.5) / 8;
+        const ry = trackInnerRy + (trackOuterRy - trackInnerRy) * t;
+        ctx.beginPath();
+        ctx.moveTo(cx - 220 + l * 14, cy - ry - 10);
+        ctx.lineTo(cx - 220 + l * 14, cy - ry + 10);
+        ctx.stroke();
+      }
+
+      // Inner Turf Apron & Terracotta Field-Event D-Zones
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, trackInnerRx - 5, trackInnerRy - 5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#255220';
+      ctx.fill();
+      ctx.clip();
+
+      ctx.fillStyle = '#7c3022';
+      ctx.beginPath(); ctx.arc(cx - 535, cy, 178, Math.PI * 0.5, Math.PI * 1.5); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 535, cy, 178, -Math.PI * 0.5, Math.PI * 0.5); ctx.fill();
+      ctx.restore();
+
+      // FIFA Mowed Football Pitch with Cross-Mow Pattern, Turf Grain & Goalmouth Wear
+      const pW = 1040, pH = 660;
+      const pX = cx - pW / 2, pY = cy - pH / 2;
+
+      const stripes = 18;
+      const sW = pW / stripes;
+      for (let i = 0; i < stripes; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#235a1e' : '#2d6d27';
+        ctx.fillRect(pX + i * sW, pY, sW + 1, pH);
+      }
+
+      // Subtle horizontal mow bands for realistic stadium lawn sheen
+      const hStripes = 10;
+      const sH = pH / hStripes;
+      for (let j = 0; j < hStripes; j++) {
+        ctx.fillStyle = j % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.03)';
+        ctx.fillRect(pX, pY + j * sH, pW, sH);
+      }
+
+      for (let i = 0; i < 42000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(210,245,170,0.06)' : 'rgba(10,30,8,0.085)';
+        ctx.fillRect(pX + Math.random() * pW, pY + Math.random() * pH, 2.5, 2.5);
+      }
+
+      const drawWear = (wx, wy, rad) => {
+        const g = ctx.createRadialGradient(wx, wy, 4, wx, wy, rad);
+        g.addColorStop(0, 'rgba(124, 102, 66, 0.30)');
+        g.addColorStop(1, 'rgba(124, 102, 66, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(wx, wy, rad, 0, Math.PI * 2); ctx.fill();
+      };
+      drawWear(pX + 34, cy, 78);
+      drawWear(pX + pW - 34, cy, 78);
+      drawWear(cx, cy, 52);
+
+      // Crisp White FIFA Pitch Lines & Corner Arcs
+      ctx.strokeStyle = 'rgba(250, 252, 255, 0.95)';
+      ctx.lineWidth = 4.5;
+      ctx.strokeRect(pX, pY, pW, pH);
+
+      ctx.beginPath(); ctx.moveTo(cx, pY); ctx.lineTo(cx, pY + pH); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, 88, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+
+      const penW = 165, penH = 380, boxW = 58, boxH = 175;
+      ctx.strokeRect(pX, cy - penH / 2, penW, penH);
+      ctx.strokeRect(pX, cy - boxH / 2, boxW, boxH);
+      ctx.strokeRect(pX + pW - penW, cy - penH / 2, penW, penH);
+      ctx.strokeRect(pX + pW - boxW, cy - boxH / 2, boxW, boxH);
+
+      ctx.beginPath(); ctx.arc(pX + 112, cy, 82, -0.65, 0.65); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pX + pW - 112, cy, 82, Math.PI - 0.65, Math.PI + 0.65); ctx.stroke();
+
+      // Corner arcs
+      const cArc = 16;
+      ctx.beginPath(); ctx.arc(pX, pY, cArc, 0, Math.PI * 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pX + pW, pY, cArc, Math.PI * 0.5, Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pX + pW, pY + pH, cArc, Math.PI, Math.PI * 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pX, pY + pH, cArc, Math.PI * 1.5, Math.PI * 2); ctx.stroke();
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createGrassBumpTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 24000; i++) {
+        const v = Math.floor(95 + Math.random() * 75);
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(8, 6);
+      return tex;
+    }
+
+    function createConcreteTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#d3cab7';
+      ctx.fillRect(0, 0, 512, 512);
+
+      for (let i = 0; i < 16000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,252,245,0.09)' : 'rgba(55,48,40,0.10)';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+      }
+      // Subtle weathered architectural panel seams & rain streaks
+      ctx.strokeStyle = 'rgba(65, 58, 48, 0.17)';
+      ctx.lineWidth = 2;
+      for (let y = 0; y < 512; y += 64) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+      }
+      for (let x = 0; x < 512; x += 128) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+      }
+      for (let s = 0; s < 32; s++) {
+        const sx = Math.random() * 512;
+        const g = ctx.createLinearGradient(sx, 0, sx, 160);
+        g.addColorStop(0, 'rgba(60, 52, 42, 0.14)');
+        g.addColorStop(1, 'rgba(60, 52, 42, 0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(sx, 0, 6, 160);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(8, 2);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createRoofRibTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 256;
+      const ctx = c.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0, '#e5e0d5');
+      g.addColorStop(0.5, '#f6f3ec');
+      g.addColorStop(1, '#d6cfc0');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 1024, 256);
+
+      for (let x = 0; x < 1024; x += 16) {
+        ctx.fillStyle = 'rgba(75, 70, 62, 0.24)';
+        ctx.fillRect(x, 0, 2.5, 256);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.fillRect(x + 2.5, 0, 1.5, 256);
+      }
+      for (let i = 0; i < 8000; i++) {
+        ctx.fillStyle = 'rgba(85,78,66,0.05)';
+        ctx.fillRect(Math.random() * 1024, Math.random() * 256, 3, 2);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(6, 1);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createGroundTexture() {
+      const c = document.createElement('canvas');
+      c.width = 2048; c.height = 2048;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#293c21';
+      ctx.fillRect(0, 0, 2048, 2048);
+
+      for (let i = 0; i < 60000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(62,88,46,0.16)' : 'rgba(20,30,17,0.18)';
+        ctx.fillRect(Math.random() * 2048, Math.random() * 2048, 5, 5);
+      }
+
+      // Asphalt Ring Road around VYBK Stadium Complex
+      ctx.strokeStyle = '#2c3139';
+      ctx.lineWidth = 48;
+      ctx.beginPath();
+      ctx.ellipse(1024, 1024, 460, 395, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(225, 220, 200, 0.35)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([18, 22]);
+      ctx.beginPath();
+      ctx.ellipse(1024, 1024, 460, 395, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // EM Bypass & Broadway arterial avenues
+      ctx.strokeStyle = '#292e35';
+      ctx.lineWidth = 42;
+      ctx.beginPath();
+      ctx.moveTo(0, 1490); ctx.lineTo(2048, 1440);
+      ctx.moveTo(390, 0); ctx.lineTo(470, 2048);
+      ctx.stroke();
+
+      // Paved parking bays
+      ctx.fillStyle = '#323740';
+      ctx.fillRect(1360, 1280, 280, 180);
+      ctx.fillRect(460, 420, 240, 150);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+      ctx.lineWidth = 2;
+      for (let x = 1380; x < 1620; x += 22) {
+        ctx.beginPath(); ctx.moveTo(x, 1295); ctx.lineTo(x, 1345); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, 1395); ctx.lineTo(x, 1445); ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 8;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createBuildingFacadeTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 512;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#6f6962';
+      ctx.fillRect(0, 0, 256, 512);
+
+      const cols = 8, rows = 20;
+      const cw = 256 / cols, rh = 512 / rows;
+
+      for (let r = 0; r < rows; r++) {
+        ctx.fillStyle = '#57524c';
+        ctx.fillRect(0, r * rh, 256, 4);
+
+        for (let col = 0; col < cols; col++) {
+          const lit = Math.random() > 0.7;
+          const duskReflect = Math.random() > 0.42;
+          if (lit) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#f5cb86' : '#ffd9a0';
+          } else if (duskReflect) {
+            ctx.fillStyle = '#475569';
+          } else {
+            ctx.fillStyle = '#242b36';
+          }
+          ctx.fillRect(col * cw + 5, r * rh + 6, cw - 10, rh - 10);
+        }
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createPerimeterLEDTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 64;
+      const ctx = c.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 1024, 0);
+      grad.addColorStop(0, '#004d26');
+      grad.addColorStop(0.25, '#6b001a');
+      grad.addColorStop(0.5, '#0f172a');
+      grad.addColorStop(0.75, '#004d26');
+      grad.addColorStop(1, '#6b001a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 64);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 28px Inter, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('MOHUN BAGAN SG   •   VYBK KOLKATA   •   TRISHIR ARENA   •   MATCHDAY LIVE   •', 24, 34);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(4, 1);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createScoreboardTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 256;
+      const ctx = c.getContext('2d');
+
+      const g = ctx.createLinearGradient(0, 0, 512, 256);
+      g.addColorStop(0, '#061a10');
+      g.addColorStop(0.5, '#0b1120');
+      g.addColorStop(1, '#290610');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 512, 256);
+
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(8, 8, 496, 240);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '800 20px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('VIVEKANANDA YUBA BHARATI KRIRANGAN • LIVE', 256, 44);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 54px Inter, sans-serif';
+      ctx.fillText('MBSG  2 - 0  XI', 256, 134);
+
+      ctx.fillStyle = '#34d399';
+      ctx.font = '700 22px Inter, sans-serif';
+      ctx.fillText("74'  •  TRISHIR VIP MATCHDAY", 256, 200);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createGlowSpriteTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 2, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255, 248, 224, 1)');
+      g.addColorStop(0.28, 'rgba(255, 224, 158, 0.65)');
+      g.addColorStop(0.62, 'rgba(255, 192, 108, 0.16)');
+      g.addColorStop(1, 'rgba(255, 175, 85, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    // =========================================================================
+    // 4. INITIALIZE RENDERER, PMREM ENVIRONMENT & GOLDEN-HOUR LIGHTING
+    // =========================================================================
+    async function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2('#c49a74', 0.00165);
+
+      camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.3, 1300);
+      camera.position.set(-158, 76, 138);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.12;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.03;
+      controls.minDistance = 8;
+      controls.maxDistance = 260;
+      controls.enabled = false;
+
+      updateLoadingProgress(18, 'Baking PMREM golden-hour reflections & Kolkata sky...');
+      buildSkyPMREMAndLights();
+
+      updateLoadingProgress(38, 'Building Salt Lake city skyline, plaza, traffic & lake...');
+      buildSaltLakeEnvironment();
+
+      updateLoadingProgress(56, 'Laying FIFA turf, 8-lane track, kerbs & LED perimeter boards...');
+      buildInfieldAndPitch();
+
+      updateLoadingProgress(76, 'Assembling VYBK 3-tier bowl & tightly-packed MBSG/TRISHIR seats...');
+      loadLocalTickets();
+      buildVYBKStadiumAndSeats();
+
+      updateLoadingProgress(90, 'Mounting tensile cantilever roof, scoreboards & volumetric floodlights...');
+      buildRoofScoreboardsAndLights();
+
+      updateLoadingProgress(96, 'Syncing live seat reservations with Spring Boot API...');
+      await syncSeatsFromBackend(false);
+
+      setupEventListeners();
+      updateTicketBadge();
+
+      updateLoadingProgress(100, 'Launching Aerial Drone Feed...');
+      setTimeout(() => {
+        const loader = document.getElementById('loading-screen');
+        loader.style.opacity = '0';
+        setTimeout(() => {
+          loader.style.display = 'none';
+          startIntroAnimation();
+        }, 620);
+      }, 360);
+
+      animate();
+    }
+
+    function updateLoadingProgress(pct, text) {
+      document.getElementById('loading-bar').style.width = pct + '%';
+      document.getElementById('loading-text').textContent = text;
+    }
+
+    function buildSkyPMREMAndLights() {
+      const skyGeo = new THREE.SphereGeometry(720, 32, 24);
+      const skyMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        uniforms: {
+          topColor: { value: new THREE.Color('#233f68') },
+          midColor: { value: new THREE.Color('#8c7d84') },
+          horizonColor: { value: new THREE.Color('#dba676') },
+          sunDir: { value: new THREE.Vector3(-0.62, 0.25, -0.74).normalize() }
+        },
+        vertexShader: `
+          varying vec3 vWorldPos;
+          void main() {
+            vec4 wp = modelMatrix * vec4(position, 1.0);
+            vWorldPos = wp.xyz;
+            gl_Position = projectionMatrix * viewMatrix * wp;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 topColor;
+          uniform vec3 midColor;
+          uniform vec3 horizonColor;
+          uniform vec3 sunDir;
+          varying vec3 vWorldPos;
+          void main() {
+            vec3 dir = normalize(vWorldPos);
+            float h = clamp(dir.y, 0.0, 1.0);
+            vec3 col = mix(horizonColor, midColor, smoothstep(0.0, 0.23, h));
+            col = mix(col, topColor, smoothstep(0.18, 0.72, h));
+            float sunAmt = max(dot(dir, sunDir), 0.0);
+            col += vec3(1.0, 0.76, 0.45) * pow(sunAmt, 14.0) * 0.48;
+            col += vec3(1.0, 0.93, 0.78) * pow(sunAmt, 180.0) * 0.95;
+            gl_FragColor = vec4(col, 1.0);
+          }
+        `
+      });
+      const skyMesh = new THREE.Mesh(skyGeo, skyMat);
+      scene.add(skyMesh);
+
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const envScene = new THREE.Scene();
+      envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 24, 16), skyMat));
+      scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+      pmrem.dispose();
+
+      scene.add(new THREE.HemisphereLight('#ffe6c6', '#283224', 0.78));
+
+      const sun = new THREE.DirectionalLight('#ffd098', 1.6);
+      sun.position.set(-135, 86, -115);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.near = 25;
+      sun.shadow.camera.far = 450;
+      const d = 145;
+      sun.shadow.camera.left = -d;
+      sun.shadow.camera.right = d;
+      sun.shadow.camera.top = d;
+      sun.shadow.camera.bottom = -d;
+      sun.shadow.bias = -0.0005;
+      scene.add(sun);
+
+      const fill = new THREE.DirectionalLight('#8eb4db', 0.48);
+      fill.position.set(120, 62, 100);
+      scene.add(fill);
+    }
+
+    // =========================================================================
+    // 5. ULTRA-REALISTIC SALT LAKE / KOLKATA ENVIRONMENT
+    // =========================================================================
+    function buildSaltLakeEnvironment() {
+      const groundTex = createGroundTexture();
+      const ground = new THREE.Mesh(
+        new THREE.CircleGeometry(650, 80),
+        new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.92, metalness: 0.02 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -0.35;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Terracotta-Roofed Entrance Plaza & Admin Annex (SW Approach)
+      const plasterMat = new THREE.MeshStandardMaterial({ color: '#ddd4c2', roughness: 0.85 });
+      const terracottaMat = new THREE.MeshStandardMaterial({ color: '#a8442a', roughness: 0.75 });
+      const asphaltMat = new THREE.MeshStandardMaterial({ color: '#292e36', roughness: 0.9 });
+
+      const plaza = new THREE.Group();
+      const court = new THREE.Mesh(new THREE.BoxGeometry(62, 0.3, 44), asphaltMat);
+      court.position.set(-74, -0.2, 66);
+      court.rotation.y = 0.44;
+      court.receiveShadow = true;
+      plaza.add(court);
+
+      const wings = [
+        { x: -92, z: 62, w: 24, h: 6.8, d: 15, rot: 0.44 },
+        { x: -70, z: 85, w: 28, h: 6.2, d: 14, rot: 0.44 },
+        { x: -49, z: 76, w: 18, h: 5.6, d: 12, rot: 0.44 },
+      ];
+      wings.forEach((w) => {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w.w, w.h, w.d), plasterMat);
+        body.position.set(w.x, w.h / 2 - 0.2, w.z);
+        body.rotation.y = w.rot;
+        body.castShadow = true; body.receiveShadow = true;
+        plaza.add(body);
+
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(w.w + 1.5, 1.3, w.d + 1.5), terracottaMat);
+        roof.position.set(w.x, w.h + 0.35, w.z);
+        roof.rotation.y = w.rot;
+        roof.castShadow = true;
+        plaza.add(roof);
+      });
+      scene.add(plaza);
+
+      // Instanced Parked Cars in Stadium Parking Lots + Moving Matchday Traffic on Ring Road
+      const carCount = 72;
+      const carGeo = new THREE.BoxGeometry(2.1, 0.95, 4.2);
+      const carMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.26, metalness: 0.7 });
+      const carsMesh = new THREE.InstancedMesh(carGeo, carMat, carCount);
+      const carColors = ['#cbd5e1', '#1e293b', '#7f1d1d', '#f8fafc', '#334155', '#1d4ed8', '#475569'];
+      const dummy = new THREE.Object3D();
+      const tmpCol = new THREE.Color();
+
+      for (let i = 0; i < carCount; i++) {
+        const lot = i < 42 ? 0 : 1;
+        const row = lot === 0 ? Math.floor(i / 14) : Math.floor((i - 42) / 10);
+        const col = lot === 0 ? (i % 14) : ((i - 42) % 10);
+        const cx = lot === 0 ? (108 + col * 4.5) : (-115 + col * 4.6);
+        const cz = lot === 0 ? (82 + row * 12) : (-105 + row * 12);
+        dummy.position.set(cx, 0.18, cz);
+        dummy.rotation.set(0, lot === 0 ? 0.04 : -0.05, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        carsMesh.setMatrixAt(i, dummy.matrix);
+        tmpCol.set(carColors[i % carColors.length]);
+        carsMesh.setColorAt(i, tmpCol);
+      }
+      carsMesh.instanceMatrix.needsUpdate = true;
+      carsMesh.instanceColor.needsUpdate = true;
+      scene.add(carsMesh);
+
+      // Animated Matchday Cars with Headlights & Taillights along Ring Road
+      const headMat = new THREE.MeshBasicMaterial({ color: '#fef08a' });
+      const tailMat = new THREE.MeshBasicMaterial({ color: '#ef4444' });
+      for (let c = 0; c < 14; c++) {
+        const carGroup = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.85, 3.9), new THREE.MeshStandardMaterial({ color: carColors[c % carColors.length], roughness: 0.3, metalness: 0.65 }));
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 0.15), headMat);
+        hl.position.set(0, 0.05, 1.98);
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 0.15), tailMat);
+        tl.position.set(0, 0.05, -1.98);
+        carGroup.add(body, hl, tl);
+        scene.add(carGroup);
+        movingCars.push({
+          mesh: carGroup,
+          angle: (c / 14) * Math.PI * 2,
+          speed: (c % 2 === 0 ? 1 : -1) * (0.042 + (c % 3) * 0.008),
+          laneOffset: c % 2 === 0 ? 2.5 : -2.5
+        });
+      }
+
+      // Street Lamps around Stadium Ring Road
+      const poleMat = new THREE.MeshStandardMaterial({ color: '#475569', metalness: 0.7, roughness: 0.4 });
+      const bulbMat = new THREE.MeshBasicMaterial({ color: '#fde68a' });
+      for (let l = 0; l < 24; l++) {
+        const a = (l / 24) * Math.PI * 2;
+        const lx = Math.cos(a) * 124;
+        const lz = Math.sin(a) * 106;
+        const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 6.2, 6), poleMat);
+        lampPost.position.set(lx, 2.8, lz);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 8), bulbMat);
+        bulb.position.set(lx, 5.95, lz);
+        scene.add(lampPost, bulb);
+      }
+
+      // Realistic Multi-Layered Organic Foliage Trees
+      const trunkMat = new THREE.MeshStandardMaterial({ color: '#453426', roughness: 0.95 });
+      const foliageMats = [
+        new THREE.MeshStandardMaterial({ color: '#243a1f', roughness: 0.88 }),
+        new THREE.MeshStandardMaterial({ color: '#2f4825', roughness: 0.88 }),
+        new THREE.MeshStandardMaterial({ color: '#3b532b', roughness: 0.88 }),
+      ];
+      const canopyGeo = new THREE.DodecahedronGeometry(2.7, 1);
+      const trunkGeo = new THREE.CylinderGeometry(0.32, 0.55, 3.2, 6);
+
+      for (let i = 0; i < 185; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 108 + Math.random() * 155;
+        const tx = Math.cos(angle) * radius * 1.12;
+        const tz = Math.sin(angle) * radius * 0.94;
+        if (tx < -34 && tx > -115 && tz > 44 && tz < 105) continue;
+        if (tx > 100 && tx < 180 && tz > 74 && tz < 120) continue;
+
+        const tree = new THREE.Group();
+        const s = 0.72 + Math.random() * 1.1;
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = 1.6;
+        trunk.castShadow = true;
+        tree.add(trunk);
+
+        const mat = foliageMats[i % foliageMats.length];
+        for (let c = 0; c < 3; c++) {
+          const puff = new THREE.Mesh(canopyGeo, mat);
+          puff.position.set((Math.random() - 0.5) * 2.3, 3.7 + Math.random() * 1.6, (Math.random() - 0.5) * 2.3);
+          puff.scale.set(0.85 + Math.random() * 0.45, 0.65 + Math.random() * 0.35, 0.85 + Math.random() * 0.45);
+          puff.castShadow = true;
+          tree.add(puff);
+        }
+        tree.position.set(tx, -0.35, tz);
+        tree.scale.setScalar(s);
+        scene.add(tree);
+      }
+
+      // Detailed Kolkata / Salt Lake City Skyline + Glass Sector V Towers
+      const bCount = 260;
+      const facadeTex = createBuildingFacadeTexture();
+      const bGeo = new THREE.BoxGeometry(1, 1, 1);
+      const bMat = new THREE.MeshStandardMaterial({
+        map: facadeTex,
+        roughness: 0.46,
+        metalness: 0.35
+      });
+      const cityMesh = new THREE.InstancedMesh(bGeo, bMat, bCount);
+
+      const roofUnitGeo = new THREE.BoxGeometry(0.42, 0.14, 0.42);
+      const roofUnitMat = new THREE.MeshStandardMaterial({ color: '#524e49', roughness: 0.85 });
+      const roofUnitsMesh = new THREE.InstancedMesh(roofUnitGeo, roofUnitMat, bCount);
+
+      for (let i = 0; i < bCount; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 210 + Math.random() * 235;
+        const bx = Math.cos(ang) * dist;
+        const bz = Math.sin(ang) * dist;
+        if (bx > 135 && bx < 325 && bz < -125 && bz > -280) continue;
+
+        const bw = 8 + Math.random() * 16;
+        const bd = 8 + Math.random() * 16;
+        const bh = 9 + Math.pow(Math.random(), 1.85) * 52;
+        const rotY = Math.random() * Math.PI;
+
+        dummy.position.set(bx, bh / 2 - 0.35, bz);
+        dummy.rotation.set(0, rotY, 0);
+        dummy.scale.set(bw, bh, bd);
+        dummy.updateMatrix();
+        cityMesh.setMatrixAt(i, dummy.matrix);
+
+        const shade = 0.74 + Math.random() * 0.26;
+        tmpCol.setRGB(shade * 1.04, shade * 0.99, shade * 0.95);
+        cityMesh.setColorAt(i, tmpCol);
+
+        dummy.position.set(bx, bh - 0.35 + 1.4, bz);
+        dummy.scale.set(bw * 0.6, 16, bd * 0.6);
+        dummy.updateMatrix();
+        roofUnitsMesh.setMatrixAt(i, dummy.matrix);
+      }
+      cityMesh.instanceMatrix.needsUpdate = true;
+      cityMesh.instanceColor.needsUpdate = true;
+      roofUnitsMesh.instanceMatrix.needsUpdate = true;
+      scene.add(cityMesh, roofUnitsMesh);
+
+      // Shimmering Golden-Hour Salt Lake / Subhas Sarobar Water Body
+      lakeMesh = new THREE.Mesh(
+        new THREE.CircleGeometry(86, 64),
+        new THREE.MeshStandardMaterial({
+          color: '#345466',
+          roughness: 0.07,
+          metalness: 0.9,
+          envMapIntensity: 1.65
+        })
+      );
+      lakeMesh.rotation.x = -Math.PI / 2;
+      lakeMesh.scale.set(1.45, 0.82, 1);
+      lakeMesh.position.set(225, -0.22, -200);
+      scene.add(lakeMesh);
+    }
+
+    // =========================================================================
+    // 6. FOOTBALL PITCH, 8-LANE TRACK, KERBS, BALL, GOALS & LED BOARDS
+    // =========================================================================
+    function buildInfieldAndPitch() {
+      const tex = createInfieldAndTrackTexture();
+      const bumpTex = createGrassBumpTexture();
+      const fieldPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(114, 78),
+        new THREE.MeshStandardMaterial({
+          map: tex,
+          bumpMap: bumpTex,
+          bumpScale: 0.045,
+          roughness: 0.86,
+          metalness: 0.0
+        })
+      );
+      fieldPlane.rotation.x = -Math.PI / 2;
+      fieldPlane.position.y = 0.02;
+      fieldPlane.receiveShadow = true;
+      scene.add(fieldPlane);
+
+      // Raised White/Concrete Inner & Outer Athletics Track Kerbs
+      const kerbMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.7 });
+      [[40.1, 23.6], [53.2, 35.6]].forEach(([rx, rz]) => {
+        const pts = [];
+        for (let i = 0; i <= 96; i++) {
+          const a = (i / 96) * Math.PI * 2;
+          pts.push(new THREE.Vector3(Math.cos(a) * rx, 0.08, Math.sin(a) * rz));
+        }
+        const curve = new THREE.CatmullRomCurve3(pts, true);
+        const kerb = new THREE.Mesh(new THREE.TubeGeometry(curve, 96, 0.12, 6, true), kerbMat);
+        scene.add(kerb);
+      });
+
+      // Matchday Football on Center Spot
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(0.24, 16, 16),
+        new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3, metalness: 0.05 })
+      );
+      ball.position.set(0, 0.25, 0);
+      ball.castShadow = true;
+      scene.add(ball);
+
+      // Detailed 3D Goals with Back Stanchions & Fine Mesh Nets
+      const postMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.25, metalness: 0.5 });
+      const netMat = new THREE.MeshBasicMaterial({ color: '#e2e8f0', wireframe: true, transparent: true, opacity: 0.36 });
+
+      [-1, 1].forEach((side) => {
+        const g = new THREE.Group();
+        const postL = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 2.45, 10), postMat);
+        postL.position.set(0, 1.22, -3.65);
+        postL.castShadow = true;
+        const postR = postL.clone();
+        postR.position.set(0, 1.22, 3.65);
+        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 7.45, 10), postMat);
+        bar.rotation.x = Math.PI / 2;
+        bar.position.set(0, 2.45, 0);
+        bar.castShadow = true;
+
+        // Back net stanchions
+        [-3.65, 3.65].forEach((zPos) => {
+          const stanchion = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.45, 6), postMat);
+          stanchion.position.set(side * 1.9, 1.22, zPos);
+          g.add(stanchion);
+        });
+
+        const net = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.4, 7.25, 6, 5, 12), netMat);
+        net.position.set(side * 0.95, 1.2, 0);
+        g.add(postL, postR, bar, net);
+        g.position.set(side * 28.9, 0.02, 0);
+        scene.add(g);
+      });
+
+      // Illuminated Scrolling LED Perimeter Pitch-Side Advertising Boards
+      ledTex = createPerimeterLEDTexture();
+      const ledMat = new THREE.MeshStandardMaterial({
+        map: ledTex,
+        emissive: new THREE.Color('#ffffff'),
+        emissiveMap: ledTex,
+        emissiveIntensity: 0.62,
+        roughness: 0.28
+      });
+
+      const northBoard = new THREE.Mesh(new THREE.BoxGeometry(58, 1.05, 0.35), ledMat);
+      northBoard.position.set(0, 0.55, -20.2);
+      const southBoard = northBoard.clone();
+      southBoard.position.set(0, 0.55, 20.2);
+      const westBoard = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.05, 36), ledMat);
+      westBoard.position.set(-31.8, 0.55, 0);
+      const eastBoard = westBoard.clone();
+      eastBoard.position.set(31.8, 0.55, 0);
+      scene.add(northBoard, southBoard, westBoard, eastBoard);
+
+      // Team Dugouts on North Touchline with Recaro-style Manager Benches
+      const dugoutFrame = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.4, metalness: 0.5 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', transparent: true, opacity: 0.42, roughness: 0.1, metalness: 0.7 });
+      const benchMat = new THREE.MeshStandardMaterial({ color: '#004d26', roughness: 0.45 });
+      [-10.5, 10.5].forEach((dx, idx) => {
+        const dg = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.7, 1.8), glassMat);
+        dg.position.set(dx, 0.85, -21.8);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.16, 2.0), dugoutFrame);
+        roof.position.set(dx, 1.75, -21.8);
+        const bench = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.6, 0.65), idx === 0 ? benchMat : dugoutFrame);
+        bench.position.set(dx, 0.35, -22.0);
+        scene.add(dg, roof, bench);
+      });
+
+      // Animated Fluttering Corner Flags
+      const poleMat = new THREE.MeshStandardMaterial({ color: '#ffffff' });
+      const flagMat = new THREE.MeshStandardMaterial({ color: '#6b001a', side: THREE.DoubleSide });
+      [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz], idx) => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.5, 6), poleMat);
+        pole.position.set(sx * 28.9, 0.75, sz * 18.4);
+        const flagGeo = new THREE.PlaneGeometry(0.6, 0.38, 4, 2);
+        flagGeo.translate(0.3, 0, 0);
+        const flag = new THREE.Mesh(flagGeo, flagMat);
+        flag.position.set(sx * 28.9, 1.32, sz * 18.4);
+        scene.add(pole, flag);
+        cornerFlags.push({ mesh: flag, phase: idx * 1.4 });
+      });
+    }
+
+    // =========================================================================
+    // 7. VYBK 3-TIER OVAL BOWL, BALUSTRADES, VOMITORIES & TIGHT BUCKET SEATS
+    // =========================================================================
+    function buildVYBKStadiumAndSeats() {
+      const concreteTex = createConcreteTexture();
+      const concreteMat = new THREE.MeshStandardMaterial({ map: concreteTex, roughness: 0.88, metalness: 0.05 });
+      const riserMat = new THREE.MeshStandardMaterial({ color: '#454b52', roughness: 0.9 });
+      const fasciaMat = new THREE.MeshStandardMaterial({ color: '#d4ccbc', roughness: 0.78 });
+      const glassRailMat = new THREE.MeshStandardMaterial({
+        color: '#a5c4d4',
+        transparent: true,
+        opacity: 0.32,
+        roughness: 0.08,
+        metalness: 0.85
+      });
+      const vipGlassMat = new THREE.MeshStandardMaterial({
+        color: '#1b2838',
+        emissive: '#4d361d',
+        emissiveIntensity: 0.38,
+        roughness: 0.12,
+        metalness: 0.88
+      });
+
+      function createOvalBand(rxIn, rzIn, rxOut, rzOut, yBottom, yTop, mat, segs = 96) {
+        const shape = new THREE.Shape();
+        shape.absellipse(0, 0, rxOut, rzOut, 0, Math.PI * 2, false, 0);
+        const hole = new THREE.Path();
+        hole.absellipse(0, 0, rxIn, rzIn, 0, Math.PI * 2, true, 0);
+        shape.holes.push(hole);
+
+        const geo = new THREE.ExtrudeGeometry(shape, { depth: yTop - yBottom, bevelEnabled: false, curveSegments: segs });
+        geo.rotateX(-Math.PI / 2);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.y = yBottom;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        return mesh;
+      }
+
+      const tiers = [
+        { name: 'Lower Tier',  rows: 9,  rxStart: 47.5, rzStart: 33.5, yStart: 1.4,  stepR: 0.92, stepY: 0.52, priceAdd: 600 },
+        { name: 'Middle Tier', rows: 11, rxStart: 57.5, rzStart: 43.5, yStart: 7.4,  stepR: 0.92, stepY: 0.66, priceAdd: 350 },
+        { name: 'Upper Tier',  rows: 7,  rxStart: 69.2, rzStart: 55.2, yStart: 15.8, stepR: 0.92, stepY: 0.76, priceAdd: 0   },
+      ];
+
+      tiers.forEach((t, idx) => {
+        for (let r = 0; r < t.rows; r++) {
+          const rx0 = t.rxStart + r * t.stepR - 0.38;
+          const rz0 = t.rzStart + r * t.stepR - 0.38;
+          const y0 = t.yStart + r * t.stepY - 0.62;
+          scene.add(createOvalBand(rx0, rz0, rx0 + t.stepR + 0.15, rz0 + t.stepR + 0.15, y0, y0 + 0.65, riserMat, 88));
+        }
+        // Front concrete parapet wall + tempered glass safety balustrade
+        scene.add(createOvalBand(t.rxStart - 0.85, t.rzStart - 0.85, t.rxStart - 0.25, t.rzStart - 0.25, t.yStart - 0.95, t.yStart + 0.45, fasciaMat, 96));
+        scene.add(createOvalBand(t.rxStart - 0.62, t.rzStart - 0.62, t.rxStart - 0.48, t.rzStart - 0.48, t.yStart + 0.45, t.yStart + 1.05, glassRailMat, 96));
+
+        if (idx === 1) {
+          scene.add(createOvalBand(t.rxStart - 1.5, t.rzStart - 1.5, t.rxStart - 0.85, t.rzStart - 0.85, t.yStart - 1.85, t.yStart - 0.35, vipGlassMat, 96));
+        }
+      });
+
+      // Multi-Level Open-Grid Exterior Cream Concrete Facade + Warm Recessed Concourse Glow
+      const extRxIn = 76.2, extRzIn = 62.2;
+      const extRxOut = 80.2, extRzOut = 66.2;
+
+      const concourseGlowMat = new THREE.MeshStandardMaterial({
+        color: '#3b332b',
+        emissive: '#ffb86b',
+        emissiveIntensity: 0.32,
+        roughness: 0.9
+      });
+      scene.add(createOvalBand(extRxIn - 0.6, extRzIn - 0.6, extRxIn + 0.3, extRzIn + 0.3, 0.5, 22.8, concourseGlowMat, 88));
+
+      [0.0, 5.5, 11.2, 16.8, 22.4].forEach((slabY) => {
+        scene.add(createOvalBand(extRxIn, extRzIn, extRxOut, extRzOut, slabY, slabY + 0.95, concreteMat, 96));
+      });
+
+      const colGeo = new THREE.BoxGeometry(1.3, 23.4, 2.4);
+      const numCols = 60;
+      for (let i = 0; i < numCols; i++) {
+        const a = (i / numCols) * Math.PI * 2;
+        const col = new THREE.Mesh(colGeo, concreteMat);
+        col.position.set(Math.cos(a) * (extRxOut - 0.85), 11.7, Math.sin(a) * (extRzOut - 0.85));
+        col.rotation.y = -a + Math.PI / 2;
+        col.castShadow = true; col.receiveShadow = true;
+        scene.add(col);
+      }
+
+      // Sweeping External Curved Pedestrian Access Ramps
+      [0.58, 1.32, 2.1, 2.82].forEach((baseA) => {
+        for (let s = 0; s < 12; s++) {
+          const frac = s / 12;
+          const a = baseA + frac * 0.28;
+          const radOffset = 4.2 + frac * 9.0;
+          const seg = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.55, 4.0), concreteMat);
+          seg.position.set(Math.cos(a) * (extRxOut + radOffset), 6.4 * (1 - frac), Math.sin(a) * (extRzOut + radOffset));
+          seg.rotation.y = -a + Math.PI / 2;
+          seg.rotation.z = -0.14;
+          seg.castShadow = true; seg.receiveShadow = true;
+          scene.add(seg);
+        }
+      });
+
+      // =======================================================================
+      // GENERATE DENSE, TIGHTLY-PACKED SEATS + AISLE STAIRS + VOMITORIES
+      // =======================================================================
+      seatsData = [];
+      seatLookupMap.clear();
+      blocksMap = {};
+
+      const standSectors = [
+        { id: 'NORTH', name: 'MBSG North Stand',    prefix: 'N', gate: '3A', aStart: -146, aEnd: -34,  blocks: 5, colsPerBlock: 19, basePrice: 650 },
+        { id: 'EAST',  name: 'VYBK East Curve',     prefix: 'E', gate: '4B', aStart: -34,  aEnd: 34,   blocks: 3, colsPerBlock: 14, basePrice: 450 },
+        { id: 'SOUTH', name: 'TRISHIR South Stand', prefix: 'S', gate: '1A', aStart: 34,   aEnd: 146,  blocks: 5, colsPerBlock: 19, basePrice: 700 },
+        { id: 'WEST',  name: 'VYBK West Curve',     prefix: 'W', gate: '2B', aStart: 146,  aEnd: 214,  blocks: 3, colsPerBlock: 14, basePrice: 450 },
+      ];
+
+      const stairMat = new THREE.MeshStandardMaterial({ color: '#8f969e', roughness: 0.92 });
+      const stairEdgeMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.65 });
+      const vomitoryMat = new THREE.MeshStandardMaterial({ color: '#090b0f', roughness: 0.95 });
+
+      standSectors.forEach((sec) => {
+        const degSpan = sec.aEnd - sec.aStart;
+        for (let b = 0; b < sec.blocks; b++) {
+          const aisleDeg = sec.aStart + (b / sec.blocks) * degSpan;
+          const aRad = THREE.MathUtils.degToRad(aisleDeg);
+
+          tiers.forEach((t) => {
+            const midR = t.rows / 2;
+            const rx = t.rxStart + midR * t.stepR;
+            const rz = t.rzStart + midR * t.stepR;
+            const y = t.yStart + midR * t.stepY - 0.1;
+            const len = t.rows * Math.hypot(t.stepR, t.stepY);
+            const pitchAngle = Math.atan2(t.stepY, t.stepR);
+
+            const stair = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.22, len), stairMat);
+            stair.position.set(Math.cos(aRad) * rx, y, Math.sin(aRad) * rz);
+            stair.lookAt(0, y, 0);
+            stair.rotateX(-pitchAngle);
+            scene.add(stair);
+
+            // Subtle safety yellow aisle strip
+            const railStrip = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.25, len), stairEdgeMat);
+            railStrip.position.copy(stair.position);
+            railStrip.rotation.copy(stair.rotation);
+            scene.add(railStrip);
+          });
+
+          const vRad = THREE.MathUtils.degToRad(aisleDeg + (degSpan / sec.blocks) * 0.5);
+          const vom = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 1.4), vomitoryMat);
+          vom.position.set(Math.cos(vRad) * 57.6, 8.6, Math.sin(vRad) * 43.6);
+          vom.lookAt(0, 8.6, 0);
+          scene.add(vom);
+        }
+      });
+
+      let globalRowOffset = 0;
+      tiers.forEach((tier, tierIdx) => {
+        for (let r = 0; r < tier.rows; r++) {
+          const rx = tier.rxStart + r * tier.stepR;
+          const rz = tier.rzStart + r * tier.stepR;
+          const y = tier.yStart + r * tier.stepY;
+          const displayRow = globalRowOffset + r + 1;
+
+          standSectors.forEach((sec) => {
+            const totalCols = sec.blocks * sec.colsPerBlock;
+            const degSpan = sec.aEnd - sec.aStart;
+
+            for (let b = 0; b < sec.blocks; b++) {
+              const blockId = `${sec.prefix}-${b + 1}`;
+              const bStartDeg = sec.aStart + (b / sec.blocks) * degSpan + 0.65;
+              const bEndDeg = sec.aStart + ((b + 1) / sec.blocks) * degSpan - 0.65;
+              const stepDeg = (bEndDeg - bStartDeg) / sec.colsPerBlock;
+              const stepRad = THREE.MathUtils.degToRad(stepDeg);
+
+              for (let c = 0; c < sec.colsPerBlock; c++) {
+                const deg = bStartDeg + (c + 0.5) * stepDeg;
+                const rad = THREE.MathUtils.degToRad(deg);
+
+                const sx = Math.cos(rad) * rx;
+                const sz = Math.sin(rad) * rz;
+
+                const dsdTheta = Math.hypot(-rx * Math.sin(rad), rz * Math.cos(rad));
+                const seatPhysicalWidth = Math.min(dsdTheta * stepRad * 0.93, 1.42);
+
+                const rotY = Math.atan2(-sx, -sz);
+                const colInStand = b * sec.colsPerBlock + c;
+
+                let baseColor = COLOR_VYBK_BLUE;
+                let isMosaic = false;
+
+                if (sec.id === 'NORTH') {
+                  baseColor = (b % 2 === 0) ? COLOR_MBSG_GREEN : COLOR_MBSG_MAROON;
+                  if (tierIdx === 1 && isBoldMosaicSeat('MBSG', r, colInStand, tier.rows, totalCols, 2, false)) {
+                    baseColor = COLOR_MOSAIC_WHITE;
+                    isMosaic = true;
+                  }
+                } else if (sec.id === 'SOUTH') {
+                  // FIXED: mirrorX = false so TRISHIR reads cleanly left-to-right when facing South Stand!
+                  baseColor = (b % 2 === 0) ? COLOR_TRISHIR_NAVY : COLOR_TRISHIR_SLATE;
+                  if (tierIdx === 1 && isBoldMosaicSeat('TRISHIR', r, colInStand, tier.rows, totalCols, 1, false)) {
+                    baseColor = COLOR_MOSAIC_WHITE;
+                    isMosaic = true;
+                  }
+                } else {
+                  baseColor = (tierIdx === 0) ? COLOR_VYBK_SLATE : COLOR_VYBK_BLUE;
+                }
+
+                const seatNum = c + 1;
+                const seatKey = makeBackendSeatKey(blockId, displayRow, seatNum);
+                const price = sec.basePrice + tier.priceAdd + (isMosaic ? 250 : 0);
+
+                const seatObj = {
+                  index: seatsData.length,
+                  seatKey,
+                  standId: sec.id,
+                  standName: sec.name,
+                  tierName: tier.name,
+                  gate: sec.gate,
+                  blockId,
+                  row: displayRow,
+                  seatNumber: seatNum,
+                  price,
+                  pos: new THREE.Vector3(sx, y, sz),
+                  rotY,
+                  seatWidth: seatPhysicalWidth,
+                  baseColor: baseColor.clone(),
+                  isMosaic,
+                };
+                seatsData.push(seatObj);
+                seatLookupMap.set(seatKey, seatObj.index);
+
+                if (!blocksMap[blockId]) {
+                  blocksMap[blockId] = {
+                    blockId,
+                    standId: sec.id,
+                    standName: sec.name,
+                    priceMin: sec.basePrice,
+                    sumPos: new THREE.Vector3(),
+                    count: 0,
+                  };
+                }
+                blocksMap[blockId].sumPos.add(seatObj.pos);
+                blocksMap[blockId].count++;
+              }
+            }
+          });
+        }
+        globalRowOffset += tier.rows;
+      });
+
+      Object.values(blocksMap).forEach((b) => {
+        b.center = b.sumPos.divideScalar(b.count);
+      });
+
+      // Build Sculpted Bucket Seat InstancedMeshes (Ergonomic Pan + Reclined Backrest + Under-Seat Riser)
+      const count = seatsData.length;
+      const panGeo = new THREE.BoxGeometry(0.96, 0.14, 0.56);
+      const backGeo = new THREE.BoxGeometry(0.94, 0.72, 0.13);
+      const mountGeo = new THREE.BoxGeometry(0.88, 0.24, 0.40);
+
+      const plasticMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.35,
+        metalness: 0.1,
+        envMapIntensity: 0.9
+      });
+      const mountMat = new THREE.MeshStandardMaterial({
+        color: '#1b1f26',
+        roughness: 0.6,
+        metalness: 0.6
+      });
+
+      seatPanMesh = new THREE.InstancedMesh(panGeo, plasticMat, count);
+      seatBackMesh = new THREE.InstancedMesh(backGeo, plasticMat, count);
+      seatMountMesh = new THREE.InstancedMesh(mountGeo, mountMat, count);
+
+      const dummy = new THREE.Object3D();
+      dummy.rotation.order = 'YXZ'; // Ensures local X recline happens uniformly around all 360°!
+      const backOffset = new THREE.Vector3();
+      const mountOffset = new THREE.Vector3();
+      const yAxis = new THREE.Vector3(0, 1, 0);
+
+      for (let i = 0; i < count; i++) {
+        const s = seatsData[i];
+
+        dummy.position.copy(s.pos);
+        dummy.rotation.set(0, s.rotY, 0);
+        dummy.scale.set(s.seatWidth, 1, 1);
+        dummy.updateMatrix();
+        seatPanMesh.setMatrixAt(i, dummy.matrix);
+
+        // Properly reclined outward away from the pitch (-0.14 rad around local X)
+        backOffset.set(0, 0.34, -0.24).applyAxisAngle(yAxis, s.rotY);
+        dummy.position.copy(s.pos).add(backOffset);
+        dummy.rotation.set(-0.14, s.rotY, 0);
+        dummy.scale.set(s.seatWidth, 1, 1);
+        dummy.updateMatrix();
+        seatBackMesh.setMatrixAt(i, dummy.matrix);
+
+        mountOffset.set(0, -0.18, -0.05).applyAxisAngle(yAxis, s.rotY);
+        dummy.position.copy(s.pos).add(mountOffset);
+        dummy.rotation.set(0, s.rotY, 0);
+        dummy.scale.set(s.seatWidth, 1, 1);
+        dummy.updateMatrix();
+        seatMountMesh.setMatrixAt(i, dummy.matrix);
+
+        const col = bookedSet.has(s.seatKey) ? COLOR_BOOKED : s.baseColor;
+        seatPanMesh.setColorAt(i, col);
+        seatBackMesh.setColorAt(i, col);
+      }
+
+      seatPanMesh.instanceMatrix.needsUpdate = true;
+      seatBackMesh.instanceMatrix.needsUpdate = true;
+      seatMountMesh.instanceMatrix.needsUpdate = true;
+      seatPanMesh.instanceColor.needsUpdate = true;
+      seatBackMesh.instanceColor.needsUpdate = true;
+
+      scene.add(seatMountMesh, seatPanMesh, seatBackMesh);
+
+      // Pulsing 3D Selection Beacon Ring
+      const beaconGeo = new THREE.RingGeometry(0.45, 0.72, 24);
+      beaconGeo.rotateX(-Math.PI / 2);
+      selectionBeacon = new THREE.Mesh(
+        beaconGeo,
+        new THREE.MeshBasicMaterial({ color: '#f97316', side: THREE.DoubleSide, transparent: true, opacity: 0.92 })
+      );
+      selectionBeacon.visible = false;
+      scene.add(selectionBeacon);
+    }
+
+    // =========================================================================
+    // 8. CONTINUOUS RIBBED CANTILEVER ROOF, TENSILE MASTS, SCOREBOARDS & FLOODLIGHTS
+    // =========================================================================
+    function buildRoofScoreboardsAndLights() {
+      const roofTex = createRoofRibTexture();
+      const roofMat = new THREE.MeshStandardMaterial({
+        map: roofTex,
+        roughness: 0.45,
+        metalness: 0.14,
+        side: THREE.DoubleSide
+      });
+      const steelMat = new THREE.MeshStandardMaterial({ color: '#242a33', roughness: 0.42, metalness: 0.75 });
+      const cableMat = new THREE.LineBasicMaterial({ color: '#cbd5e1', transparent: true, opacity: 0.55 });
+
+      const segs = 96;
+      const rxIn = 69.2, rzIn = 55.2, yIn = 27.6;
+      const rxOut = 83.2, rzOut = 69.2, yOut = 24.4;
+
+      const positions = [], uvs = [], indices = [];
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const a = t * Math.PI * 2;
+        positions.push(Math.cos(a) * rxIn, yIn, Math.sin(a) * rzIn);
+        uvs.push(t * 18, 0);
+        positions.push(Math.cos(a) * rxOut, yOut, Math.sin(a) * rzOut);
+        uvs.push(t * 18, 1);
+
+        if (i < segs) {
+          const i0 = i * 2;
+          indices.push(i0, i0 + 1, i0 + 2, i0 + 1, i0 + 3, i0 + 2);
+        }
+      }
+
+      const roofGeo = new THREE.BufferGeometry();
+      roofGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      roofGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      roofGeo.setIndex(indices);
+      roofGeo.computeVertexNormals();
+
+      const roofMesh = new THREE.Mesh(roofGeo, roofMat);
+      roofMesh.castShadow = true;
+      roofMesh.receiveShadow = true;
+      scene.add(roofMesh);
+
+      // Radial Steel Roof Trusses + Exterior Roof Tension Masts & Stay Cables
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        const pIn = new THREE.Vector3(Math.cos(a) * rxIn, yIn - 0.55, Math.sin(a) * rzIn);
+        const pOut = new THREE.Vector3(Math.cos(a) * (rxOut - 1.2), yOut - 0.55, Math.sin(a) * (rzOut - 1.2));
+        const mid = pIn.clone().add(pOut).multiplyScalar(0.5);
+
+        const truss = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.78, pIn.distanceTo(pOut)), steelMat);
+        truss.position.copy(mid);
+        truss.lookAt(pOut);
+        scene.add(truss);
+
+        if (i % 4 === 0) {
+          const mastX = Math.cos(a) * (rxOut - 1.5);
+          const mastZ = Math.sin(a) * (rzOut - 1.5);
+          const mastTop = new THREE.Vector3(mastX, yOut + 8.5, mastZ);
+          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 9.5, 8), steelMat);
+          mast.position.set(mastX, yOut + 3.8, mastZ);
+          scene.add(mast);
+
+          const stayGeo = new THREE.BufferGeometry().setFromPoints([
+            mastTop,
+            new THREE.Vector3(Math.cos(a) * (rxIn + 1.5), yIn + 0.1, Math.sin(a) * (rzIn + 1.5))
+          ]);
+          scene.add(new THREE.Line(stayGeo, cableMat));
+        }
+      }
+
+      // Glowing Under-Roof LED Floodlight Banks + Volumetric Halos + Subtle Light Beams
+      const glowTex = createGlowSpriteTexture();
+      const spriteMat = new THREE.SpriteMaterial({
+        map: glowTex,
+        color: '#ffe3b3',
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0.72
+      });
+      const lampMat = new THREE.MeshBasicMaterial({ color: '#fff8df' });
+      const beamMat = new THREE.MeshBasicMaterial({
+        color: '#ffebbf',
+        transparent: true,
+        opacity: 0.032,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const beamGeo = new THREE.ConeGeometry(8.5, 36, 16, 1, true);
+      beamGeo.translate(0, -18, 0);
+      beamGeo.rotateX(-Math.PI / 2);
+
+      for (let i = 0; i < 28; i++) {
+        const a = (i / 28) * Math.PI * 2;
+        const fx = Math.cos(a) * (rxIn + 0.8);
+        const fz = Math.sin(a) * (rzIn + 0.8);
+        const fy = yIn - 0.85;
+
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.55, 0.65), lampMat);
+        lamp.position.set(fx, fy, fz);
+        lamp.lookAt(0, 0, 0);
+        scene.add(lamp);
+
+        const halo = new THREE.Sprite(spriteMat);
+        halo.position.set(fx, fy - 0.25, fz);
+        halo.scale.set(9.2, 9.2, 1);
+        scene.add(halo);
+
+        if (i % 2 === 0) {
+          const beam = new THREE.Mesh(beamGeo, beamMat);
+          beam.position.set(fx, fy - 0.4, fz);
+          beam.lookAt(0, 0, 0);
+          scene.add(beam);
+        }
+      }
+
+      // Two Giant Glowing LED Stadium Scoreboards at NW and SE Curves
+      const sbTex = createScoreboardTexture();
+      const sbScreenMat = new THREE.MeshStandardMaterial({
+        map: sbTex,
+        emissive: new THREE.Color('#ffffff'),
+        emissiveMap: sbTex,
+        emissiveIntensity: 0.88,
+        roughness: 0.25
+      });
+
+      [THREE.MathUtils.degToRad(-154), THREE.MathUtils.degToRad(26)].forEach((ang) => {
+        const sbGroup = new THREE.Group();
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(16.8, 8.6, 1.2), steelMat);
+        const screen = new THREE.Mesh(new THREE.PlaneGeometry(16.0, 7.8), sbScreenMat);
+        screen.position.z = 0.65;
+        sbGroup.add(housing, screen);
+
+        const sbx = Math.cos(ang) * 71.0;
+        const sbz = Math.sin(ang) * 57.0;
+        sbGroup.position.set(sbx, 22.8, sbz);
+        sbGroup.lookAt(0, 8, 0);
+        scene.add(sbGroup);
+      });
+    }
+
+    // =========================================================================
+    // 9. CINEMATIC 6-SECOND DRONE ENTRY FLY-IN (SHOWCASING MBSG & TRISHIR)
+    // =========================================================================
+    function startIntroAnimation() {
+      if (introTween) introTween.kill();
+
+      viewMode = 'INTRO';
+      controls.enabled = false;
+      clearSeatSelection();
+      document.getElementById('pov-action-bar').classList.add('hidden');
+      document.getElementById('hover-tooltip').style.display = 'none';
+
+      document.body.classList.add('intro-active');
+      document.getElementById('skip-intro-btn').classList.remove('hidden');
+      const hud = document.getElementById('main-hud');
+      hud.classList.add('opacity-0');
+      hud.classList.remove('opacity-100');
+
+      const posCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-156, 76, 138),
+        new THREE.Vector3(-96, 38, 84),
+        new THREE.Vector3(-48, 32, 34),
+        new THREE.Vector3(-8, 17, 22),
+        new THREE.Vector3(24, 19, -22),
+        new THREE.Vector3(42, 74, 72),
+        new THREE.Vector3(OVERVIEW_CAM_POS.x, OVERVIEW_CAM_POS.y, OVERVIEW_CAM_POS.z)
+      ]);
+
+      const lookCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-14, 10, 10),
+        new THREE.Vector3(0, 12, 0),
+        new THREE.Vector3(0, 11, -38),
+        new THREE.Vector3(0, 11, -48),
+        new THREE.Vector3(0, 11, 48),
+        new THREE.Vector3(0, 6, 0),
+        new THREE.Vector3(OVERVIEW_TARGET.x, OVERVIEW_TARGET.y, OVERVIEW_TARGET.z)
+      ]);
+
+      const progress = { t: 0 };
+      introTween = gsap.to(progress, {
+        t: 1,
+        duration: 6.2,
+        ease: 'power2.inOut',
+        onUpdate: () => {
+          const p = posCurve.getPoint(progress.t);
+          const l = lookCurve.getPoint(progress.t);
+          camera.position.copy(p);
+          camera.lookAt(l);
+          controls.target.copy(l);
+        },
+        onComplete: finishIntroAnimation
+      });
+    }
+
+    function skipIntroAnimation() {
+      if (introTween) introTween.kill();
+      camera.position.set(OVERVIEW_CAM_POS.x, OVERVIEW_CAM_POS.y, OVERVIEW_CAM_POS.z);
+      controls.target.set(OVERVIEW_TARGET.x, OVERVIEW_TARGET.y, OVERVIEW_TARGET.z);
+      camera.lookAt(controls.target);
+      finishIntroAnimation();
+    }
+
+    function finishIntroAnimation() {
+      viewMode = 'OVERVIEW';
+      controls.enabled = true;
+      controls.minDistance = 8;
+      controls.maxDistance = 260;
+      controls.enablePan = true;
+
+      document.body.classList.remove('intro-active');
+      document.getElementById('skip-intro-btn').classList.add('hidden');
+      const hud = document.getElementById('main-hud');
+      hud.classList.remove('opacity-0');
+      hud.classList.add('opacity-100');
+
+      updateBreadcrumbs();
+    }
+
+    // =========================================================================
+    // 10. INTERACTIVE SEAT SELECTION, QUICK STAND VIEWS & 360° POV
+    // =========================================================================
+    function refreshSeatColor(index) {
+      if (index < 0 || index >= seatsData.length) return;
+      const s = seatsData[index];
+      let col = s.baseColor;
+      if (bookedSet.has(s.seatKey)) {
+        col = COLOR_BOOKED;
+      } else if (index === selectedSeatIndex) {
+        col = COLOR_SELECTED;
+      } else if (index === hoveredSeatIndex) {
+        col = COLOR_HOVERED;
+      }
+      seatPanMesh.setColorAt(index, col);
+      seatBackMesh.setColorAt(index, col);
+      seatPanMesh.instanceColor.needsUpdate = true;
+      seatBackMesh.instanceColor.needsUpdate = true;
+    }
+
+    function refreshAllSeatColors() {
+      if (!seatPanMesh || !seatBackMesh) return;
+      for (let i = 0; i < seatsData.length; i++) {
+        const s = seatsData[i];
+        let col = s.baseColor;
+        if (bookedSet.has(s.seatKey)) {
+          col = COLOR_BOOKED;
+        } else if (i === selectedSeatIndex) {
+          col = COLOR_SELECTED;
+        } else if (i === hoveredSeatIndex) {
+          col = COLOR_HOVERED;
+        }
+        seatPanMesh.setColorAt(i, col);
+        seatBackMesh.setColorAt(i, col);
+      }
+      seatPanMesh.instanceColor.needsUpdate = true;
+      seatBackMesh.instanceColor.needsUpdate = true;
+    }
+
+    function setupEventListeners() {
+      const dom = renderer.domElement;
+
+      dom.addEventListener('pointerdown', (e) => {
+        pointerDownPos = { x: e.clientX, y: e.clientY };
+      });
+
+      dom.addEventListener('pointermove', (e) => {
+        if (viewMode === 'INTRO' || viewMode === 'POV') return;
+
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects([seatPanMesh, seatBackMesh]);
+        const tooltip = document.getElementById('hover-tooltip');
+
+        if (hits.length > 0 && hits[0].instanceId !== undefined) {
+          const idx = hits[0].instanceId;
+          if (idx !== hoveredSeatIndex) {
+            const prev = hoveredSeatIndex;
+            hoveredSeatIndex = idx;
+            refreshSeatColor(prev);
+            refreshSeatColor(hoveredSeatIndex);
+          }
+
+          const s = seatsData[idx];
+          const isBooked = bookedSet.has(s.seatKey);
+          dom.style.cursor = 'pointer';
+
+          tooltip.style.display = 'block';
+          tooltip.style.left = Math.min(e.clientX + 16, window.innerWidth - 260) + 'px';
+          tooltip.style.top = Math.max(e.clientY - 42, 12) + 'px';
+
+          if (viewMode === 'OVERVIEW') {
+            const bInfo = blocksMap[s.blockId];
+            tooltip.innerHTML = `<span class="text-amber-300">${s.standName}</span> &bull; Block ${s.blockId} &bull; <span class="text-emerald-400">₹${bInfo.priceMin}+</span>`;
+          } else {
+            tooltip.innerHTML = isBooked
+              ? `Block ${s.blockId} &bull; Row ${s.row} &bull; Seat ${s.seatNumber} <span class="text-red-400 ml-1">(Booked)</span>`
+              : `${s.standName} &bull; Block ${s.blockId} &bull; R${s.row} S${s.seatNumber} &bull; <span class="text-emerald-400">₹${s.price.toLocaleString('en-IN')}</span>`;
+          }
+        } else {
+          if (hoveredSeatIndex !== -1) {
+            const prev = hoveredSeatIndex;
+            hoveredSeatIndex = -1;
+            refreshSeatColor(prev);
+          }
+          dom.style.cursor = 'grab';
+          tooltip.style.display = 'none';
+        }
+      });
+
+      dom.addEventListener('pointerup', (e) => {
+        if (viewMode === 'INTRO' || viewMode === 'POV') return;
+        if (Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y) > 6) return;
+
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects([seatPanMesh, seatBackMesh]);
+
+        if (hits.length > 0 && hits[0].instanceId !== undefined) {
+          const s = seatsData[hits[0].instanceId];
+          if (viewMode === 'OVERVIEW') {
+            zoomToBlock(s.blockId);
+          } else {
+            if (bookedSet.has(s.seatKey)) {
+              showToast('This seat is already booked. Please choose another chair.');
+              return;
+            }
+            selectSeat(s.index);
+          }
+        }
+      });
+
+      document.getElementById('search-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = document.getElementById('search-input').value.trim().toUpperCase();
+        if (!q) return;
+
+        const seatMatch = q.match(/^([A-Z]-\d+)\s+R?(\d+)\s+S?(\d+)$/);
+        if (seatMatch) {
+          const key = makeBackendSeatKey(seatMatch[1], seatMatch[2], seatMatch[3]);
+          const idx = seatLookupMap.get(key);
+          if (idx !== undefined) {
+            const s = seatsData[idx];
+            zoomToBlock(s.blockId);
+            if (!bookedSet.has(key)) {
+              selectSeat(idx);
+            } else {
+              showToast(`${s.blockId} Row ${s.row} Seat ${s.seatNumber} is already booked.`);
+            }
+            return;
+          }
+        }
+
+        if (blocksMap[q]) {
+          zoomToBlock(q);
+        } else if (q.includes('MBSG') || q.includes('NORTH')) {
+          focusStandShowcase('NORTH');
+        } else if (q.includes('TRISHIR') || q.includes('SOUTH')) {
+          focusStandShowcase('SOUTH');
+        } else if (q.includes('EAST')) {
+          zoomToBlock('E-2');
+        } else if (q.includes('WEST')) {
+          zoomToBlock('W-2');
+        } else {
+          showToast('Try "N-3", "S-3 R14 S8", "MBSG", or "TRISHIR".');
+        }
+      });
+
+      document.getElementById('checkout-form').addEventListener('submit', handleConfirmBooking);
+      document.getElementById('tickets-lookup-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('tickets-lookup-email').value.trim();
+        if (email) {
+          localStorage.setItem(STORAGE_KEY_EMAIL, email);
+          fetchCustomerTicketsFromBackend(email);
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function animateCamera(camPos, targetPos, duration = 1.35) {
+      gsap.killTweensOf(camera.position);
+      gsap.killTweensOf(controls.target);
+
+      gsap.to(camera.position, {
+        x: camPos.x, y: camPos.y, z: camPos.z,
+        duration, ease: 'power3.inOut'
+      });
+      gsap.to(controls.target, {
+        x: targetPos.x, y: targetPos.y, z: targetPos.z,
+        duration, ease: 'power3.inOut'
+      });
+    }
+
+    function focusStandShowcase(standId) {
+      viewMode = 'OVERVIEW';
+      activeBlockId = null;
+      clearSeatSelection();
+      document.getElementById('pov-action-bar').classList.add('hidden');
+      controls.minDistance = 8;
+      controls.maxDistance = 260;
+      controls.enablePan = true;
+
+      if (standId === 'NORTH') {
+        animateCamera({ x: 0, y: 34, z: 42 }, { x: 0, y: 11, z: -48 }, 1.45);
+        document.getElementById('bottom-hint').textContent = 'MBSG North Stand • Click any block to zoom into individual seats';
+      } else {
+        animateCamera({ x: 0, y: 34, z: -42 }, { x: 0, y: 11, z: 48 }, 1.45);
+        document.getElementById('bottom-hint').textContent = 'TRISHIR South Stand • Click any block to zoom into individual seats';
+      }
+      updateBreadcrumbs();
+    }
+
+    function resetToOverview() {
+      viewMode = 'OVERVIEW';
+      activeBlockId = null;
+      clearSeatSelection();
+      document.getElementById('pov-action-bar').classList.add('hidden');
+      controls.minDistance = 8;
+      controls.maxDistance = 260;
+      controls.enablePan = true;
+
+      animateCamera(OVERVIEW_CAM_POS, OVERVIEW_TARGET, 1.35);
+      updateBreadcrumbs();
+      document.getElementById('bottom-hint').textContent = 'Drag to orbit • Scroll to zoom • Click any seating block to select tightly-packed seats';
+    }
+
+    function zoomToBlock(blockId) {
+      const b = blocksMap[blockId];
+      if (!b) return;
+
+      viewMode = 'BLOCK';
+      activeBlockId = blockId;
+      document.getElementById('pov-action-bar').classList.add('hidden');
+      controls.minDistance = 4;
+      controls.maxDistance = 140;
+      controls.enablePan = true;
+
+      const inwardDir = new THREE.Vector3(-b.center.x, 0, -b.center.z).normalize();
+      const camPos = b.center.clone().add(inwardDir.multiplyScalar(24)).add(new THREE.Vector3(0, 7.2, 0));
+
+      animateCamera(camPos, b.center, 1.3);
+      updateBreadcrumbs();
+      document.getElementById('bottom-hint').textContent = `Block ${blockId} (${b.standName}) • Click any available chair to preview or book`;
+    }
+
+    function selectSeat(index) {
+      const prev = selectedSeatIndex;
+      selectedSeatIndex = index;
+      refreshSeatColor(prev);
+      refreshSeatColor(selectedSeatIndex);
+
+      const s = seatsData[index];
+      selectionBeacon.position.copy(s.pos).add(new THREE.Vector3(0, 0.28, 0));
+      selectionBeacon.visible = true;
+
+      document.getElementById('card-stand-name').textContent = s.standName;
+      document.getElementById('card-block-title').textContent = `Block ${s.blockId} • ${s.tierName}`;
+      document.getElementById('card-row').textContent = s.row;
+      document.getElementById('card-seat').textContent = s.seatNumber;
+      document.getElementById('card-price').textContent = `₹${s.price.toLocaleString('en-IN')}`;
+      document.getElementById('seat-preview-card').classList.remove('hidden');
+
+      updateBreadcrumbs();
+    }
+
+    function clearSeatSelection() {
+      if (selectedSeatIndex !== -1) {
+        const prev = selectedSeatIndex;
+        selectedSeatIndex = -1;
+        refreshSeatColor(prev);
+      }
+      if (selectionBeacon) selectionBeacon.visible = false;
+      document.getElementById('seat-preview-card').classList.add('hidden');
+      updateBreadcrumbs();
+    }
+
+    function enterSeatPOV() {
+      if (selectedSeatIndex === -1) return;
+      const s = seatsData[selectedSeatIndex];
+      viewMode = 'POV';
+
+      document.getElementById('seat-preview-card').classList.add('hidden');
+      document.getElementById('hover-tooltip').style.display = 'none';
+      document.getElementById('pov-action-bar').classList.remove('hidden');
+      document.getElementById('bottom-hint').textContent = `Spectator Eye-Level POV • Block ${s.blockId}, Row ${s.row}, Seat ${s.seatNumber} • Drag to look around 360°`;
+
+      const eyePos = s.pos.clone().add(new THREE.Vector3(0, 1.35, 0));
+      const dirToPitch = new THREE.Vector3(0, 1.0, 0).sub(eyePos).normalize();
+      const targetPos = eyePos.clone().add(dirToPitch.multiplyScalar(0.6));
+
+      controls.minDistance = 0.25;
+      controls.maxDistance = 1.4;
+      controls.enablePan = false;
+
+      animateCamera(eyePos, targetPos, 1.35);
+      updateBreadcrumbs();
+    }
+
+    function exitSeatPOV() {
+      if (activeBlockId) {
+        zoomToBlock(activeBlockId);
+        if (selectedSeatIndex !== -1) {
+          document.getElementById('seat-preview-card').classList.remove('hidden');
+        }
+      } else {
+        resetToOverview();
+      }
+    }
+
+    function updateBreadcrumbs() {
+      const bar = document.getElementById('breadcrumb-bar');
+      let html = `<button onclick="window.resetToOverview()" class="hover:text-amber-300 transition-colors font-semibold text-white">VYBK Stadium</button>`;
+
+      if (activeBlockId && blocksMap[activeBlockId]) {
+        const b = blocksMap[activeBlockId];
+        html += `<span class="text-white/40">&rsaquo;</span><button onclick="window.zoomToBlock('${b.blockId}')" class="hover:text-amber-300 transition-colors font-semibold text-amber-300">${b.standName} (${b.blockId})</button>`;
+      }
+      if (selectedSeatIndex !== -1) {
+        const s = seatsData[selectedSeatIndex];
+        html += `<span class="text-white/40">&rsaquo;</span><span class="text-emerald-400 font-semibold">Row ${s.row} &bull; Seat ${s.seatNumber}</span>`;
+      }
+      bar.innerHTML = html;
+    }
+
+    // =========================================================================
+    // 11. SPRING BOOT BACKEND SYNC, BOOKING & QR TICKET GENERATOR
+    // =========================================================================
+    function loadLocalTickets() {
+      try {
+        userTickets = JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS) || '[]');
+      } catch {
+        userTickets = [];
+      }
+    }
+
+    function saveLocalTickets() {
+      localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(userTickets));
+      updateTicketBadge();
+    }
+
+    function updateTicketBadge() {
+      document.getElementById('ticket-count-badge').textContent = userTickets.length;
+    }
+
+    async function syncSeatsFromBackend(showSuccessToast = false) {
+      const icon = document.getElementById('refresh-icon');
+      const dot = document.getElementById('sync-dot');
+      const statusText = document.getElementById('sync-status-text');
+      if (icon) icon.classList.add('animate-spin');
+
+      try {
+        const res = await fetch(API_BASE);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const list = await res.json();
+
+        bookedSet.clear();
+        let count = 0;
+        for (const item of list) {
+          if (!item.status || item.status === 'BOOKED') {
+            bookedSet.add(makeBackendSeatKey(item.block, item.rowNumber, item.seatNumber));
+            count++;
+          }
+        }
+        backendOnline = true;
+        if (selectedSeatIndex !== -1 && bookedSet.has(seatsData[selectedSeatIndex].seatKey)) {
+          clearSeatSelection();
+        }
+        refreshAllSeatColors();
+
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400 live-dot shrink-0';
+        statusText.textContent = `LIVE DB SYNCED • ${count} BOOKED / ${seatsData.length.toLocaleString()} SEATS`;
+        if (showSuccessToast) showToast(`Synced ${count} booked seats from Spring Boot DB.`);
+      } catch {
+        backendOnline = false;
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400 live-dot shrink-0';
+        statusText.textContent = `SALT LAKE STADIUM • OFFLINE PREVIEW (${seatsData.length.toLocaleString()} SEATS)`;
+        if (showSuccessToast) showToast('Backend offline — running in local preview mode.');
+      } finally {
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    }
+
+    function openCheckoutModal() {
+      if (selectedSeatIndex === -1) return;
+      const s = seatsData[selectedSeatIndex];
+      document.getElementById('checkout-stand').textContent = `${s.standName} • ${s.tierName}`;
+      document.getElementById('checkout-seat-info').textContent = `Block ${s.blockId} • Row ${s.row} • Seat ${s.seatNumber}`;
+      document.getElementById('checkout-price').textContent = `₹${s.price.toLocaleString('en-IN')}`;
+      document.getElementById('checkout-error').classList.add('hidden');
+
+      const savedEmail = localStorage.getItem(STORAGE_KEY_EMAIL);
+      if (savedEmail && !document.getElementById('customer-email').value) {
+        document.getElementById('customer-email').value = savedEmail;
+      }
+
+      const modal = document.getElementById('checkout-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeCheckoutModal() {
+      const modal = document.getElementById('checkout-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function handleConfirmBooking(e) {
+      e.preventDefault();
+      if (selectedSeatIndex === -1) return;
+
+      const name = document.getElementById('customer-name').value.trim();
+      const email = document.getElementById('customer-email').value.trim();
+      if (!name || !email) return;
+
+      const s = seatsData[selectedSeatIndex];
+      const submitBtn = document.getElementById('checkout-submit-btn');
+      const errorBox = document.getElementById('checkout-error');
+      errorBox.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Processing Booking...';
+
+      let bookingCode = 'VYBK-' + Math.floor(100000 + Math.random() * 900000);
+      let bookedAt = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      try {
+        if (backendOnline) {
+          const res = await fetch(`${API_BASE}/book`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              block: s.blockId,
+              rowNumber: s.row,
+              seatNumber: s.seatNumber,
+              price: s.price,
+              customerName: name,
+              customerEmail: email
+            })
+          });
+
+          const body = await res.json().catch(() => ({}));
+          if (res.status === 409) {
+            errorBox.textContent = body.message || 'This seat was just booked by another fan. Refreshing seat map...';
+            errorBox.classList.remove('hidden');
+            await syncSeatsFromBackend(false);
+            return;
+          }
+          if (!res.ok) {
+            const msg = body.details ? Object.values(body.details).join(', ') : body.message;
+            throw new Error(msg || `HTTP ${res.status}`);
+          }
+          bookingCode = body.bookingCode || bookingCode;
+        }
+
+        bookedSet.add(s.seatKey);
+        localStorage.setItem(STORAGE_KEY_EMAIL, email);
+        document.getElementById('tickets-lookup-email').value = email;
+
+        const ticket = {
+          bookingId: bookingCode,
+          name,
+          email,
+          standName: s.standName,
+          gate: s.gate,
+          blockId: s.blockId,
+          row: s.row,
+          seatNumber: s.seatNumber,
+          price: s.price,
+          bookedAt
+        };
+        userTickets.unshift(ticket);
+        saveLocalTickets();
+
+        const idx = selectedSeatIndex;
+        selectedSeatIndex = -1;
+        if (selectionBeacon) selectionBeacon.visible = false;
+        refreshSeatColor(idx);
+
+        closeCheckoutModal();
+        document.getElementById('seat-preview-card').classList.add('hidden');
+        document.getElementById('pov-action-bar').classList.add('hidden');
+        document.getElementById('checkout-form').reset();
+
+        if (backendOnline) await syncSeatsFromBackend(false);
+        showDigitalTicket(ticket);
+      } catch (err) {
+        errorBox.textContent = err.message || 'Could not complete booking.';
+        errorBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Confirm & Issue Digital Matchday Pass';
+      }
+    }
+
+    function drawProceduralQR(seedStr) {
+      const canvas = document.getElementById('ticket-qr-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 96, 96);
+      ctx.fillStyle = '#0f172a';
+
+      const size = 16;
+      const cell = 96 / size;
+      let hash = 0;
+      for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+
+      const drawFinder = (fx, fy) => {
+        ctx.fillRect(fx * cell, fy * cell, 4 * cell, 4 * cell);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect((fx + 0.8) * cell, (fy + 0.8) * cell, 2.4 * cell, 2.4 * cell);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect((fx + 1.4) * cell, (fy + 1.4) * cell, 1.2 * cell, 1.2 * cell);
+      };
+      drawFinder(0.5, 0.5);
+      drawFinder(11.5, 0.5);
+      drawFinder(0.5, 11.5);
+
+      for (let r = 1; r < size - 1; r++) {
+        for (let c = 1; c < size - 1; c++) {
+          if ((r < 5 && c < 5) || (r < 5 && c > 10) || (r > 10 && c < 5)) continue;
+          if (Math.abs(Math.sin(hash + r * 31 + c * 17)) > 0.48) {
+            ctx.fillRect(c * cell, r * cell, cell - 0.5, cell - 0.5);
+          }
+        }
+      }
+    }
+
+    function showDigitalTicket(t) {
+      document.getElementById('dt-name').textContent = t.name;
+      document.getElementById('dt-id').textContent = t.bookingId;
+      document.getElementById('dt-gate').textContent = t.gate || '3A';
+      document.getElementById('dt-block').textContent = t.blockId;
+      document.getElementById('dt-row').textContent = t.row;
+      document.getElementById('dt-seat').textContent = t.seatNumber;
+      document.getElementById('dt-stand').textContent = t.standName;
+      document.getElementById('dt-price').textContent = `₹${Number(t.price).toLocaleString('en-IN')}`;
+      drawProceduralQR(t.bookingId + t.blockId + t.row + t.seatNumber);
+
+      const modal = document.getElementById('ticket-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTicketModal() {
+      const modal = document.getElementById('ticket-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      if (viewMode === 'POV') exitSeatPOV();
+    }
+
+    async function fetchCustomerTicketsFromBackend(email) {
+      const listEl = document.getElementById('my-tickets-list');
+      listEl.innerHTML = `<div class="text-center py-8 text-xs text-white/60">Loading tickets for ${email}...</div>`;
+      try {
+        const res = await fetch(`${API_BASE}/tickets?email=${encodeURIComponent(email)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const tickets = await res.json();
+        userTickets = tickets.map((t) => {
+          const blk = blocksMap[t.block];
+          const standPrefix = String(t.block).charAt(0);
+          const gateMap = { N: '3A', S: '1A', E: '4B', W: '2B' };
+          return {
+            bookingId: t.bookingCode,
+            name: t.customerName,
+            email: t.customerEmail,
+            standName: blk ? blk.standName : `VYBK Stand (${t.block})`,
+            gate: gateMap[standPrefix] || '3A',
+            blockId: t.block,
+            row: t.rowNumber,
+            seatNumber: t.seatNumber,
+            price: t.price,
+            bookedAt: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Confirmed'
+          };
+        });
+        saveLocalTickets();
+        renderTicketsDrawerList();
+      } catch {
+        renderTicketsDrawerList();
+      }
+    }
+
+    function renderTicketsDrawerList() {
+      const list = document.getElementById('my-tickets-list');
+      if (userTickets.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-12 text-white/50">
+            <p class="text-sm font-semibold">No VYBK tickets found</p>
+            <p class="text-xs mt-1">Click any stand &rarr; choose your seat &rarr; confirm your pass!</p>
+          </div>`;
+        return;
+      }
+
+      list.innerHTML = userTickets.map((t, i) => `
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors cursor-pointer" onclick="window.viewSavedTicket(${i})">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[11px] font-bold uppercase text-amber-300">${t.standName}</span>
+            <span class="text-[11px] font-mono text-white/60">${t.bookingId}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-extrabold text-white">Gate ${t.gate} &bull; Block ${t.blockId} &bull; R${t.row} S${t.seatNumber}</p>
+            <span class="text-sm font-black text-emerald-400">₹${Number(t.price).toLocaleString('en-IN')}</span>
+          </div>
+          <p class="text-[11px] text-white/50 mt-1">${t.name} &bull; ${t.bookedAt}</p>
+        </div>
+      `).join('');
+    }
+
+    function openMyTicketsModal() {
+      const savedEmail = localStorage.getItem(STORAGE_KEY_EMAIL);
+      const emailInput = document.getElementById('tickets-lookup-email');
+      if (savedEmail && !emailInput.value) {
+        emailInput.value = savedEmail;
+      }
+
+      const modal = document.getElementById('my-tickets-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      if (backendOnline && emailInput.value.trim()) {
+        fetchCustomerTicketsFromBackend(emailInput.value.trim());
+      } else {
+        renderTicketsDrawerList();
+      }
+    }
+
+    function viewSavedTicket(i) {
+      closeMyTicketsModal();
+      showDigitalTicket(userTickets[i]);
+    }
+
+    function closeMyTicketsModal() {
+      const modal = document.getElementById('my-tickets-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => toast.classList.add('hidden'), 2800);
+    }
+
+    Object.assign(window, {
+      startIntroAnimation,
+      skipIntroAnimation,
+      resetToOverview,
+      focusStandShowcase,
+      zoomToBlock,
+      clearSeatSelection,
+      enterSeatPOV,
+      exitSeatPOV,
+      openCheckoutModal,
+      closeCheckoutModal,
+      closeTicketModal,
+      openMyTicketsModal,
+      closeMyTicketsModal,
+      viewSavedTicket,
+      syncSeatsFromBackend,
+    });
+
+    // =========================================================================
+    // 12. REAL-TIME ANIMATION LOOP (LED SCROLL, WATER SHIMMER, TRAFFIC & FLAGS)
+    // =========================================================================
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      // Smoothly scroll pitch-side LED boards
+      if (ledTex) ledTex.offset.x = (t * 0.045) % 1;
+
+      // Subtle fluttering corner flags
+      for (let i = 0; i < cornerFlags.length; i++) {
+        const cf = cornerFlags[i];
+        cf.mesh.rotation.y = Math.sin(t * 4.2 + cf.phase) * 0.25;
+      }
+
+      // Pulse selection beacon ring
+      if (selectionBeacon && selectionBeacon.visible) {
+        const s = 1 + Math.sin(t * 5.2) * 0.16;
+        selectionBeacon.scale.set(s, s, s);
+      }
+
+      // Animate Salt Lake water shimmer
+      if (lakeMesh) {
+        lakeMesh.material.roughness = 0.065 + Math.sin(t * 1.4) * 0.018;
+      }
+
+      // Animate Matchday Traffic around VYBK Ring Road
+      for (let i = 0; i < movingCars.length; i++) {
+        const mc = movingCars[i];
+        const a = mc.angle + t * mc.speed;
+        const rx = 115 + mc.laneOffset;
+        const rz = 99 + mc.laneOffset;
+        const x = Math.cos(a) * rx;
+        const z = Math.sin(a) * rz;
+        const dir = mc.speed > 0 ? 1 : -1;
+        mc.mesh.position.set(x, 0.14, z);
+        mc.mesh.lookAt(x - rx * Math.sin(a) * 0.05 * dir, 0.14, z + rz * Math.cos(a) * 0.05 * dir);
+      }
+
+      if (viewMode === 'POV') {
+        camera.position.y += Math.sin(t * 1.35) * 0.0011;
+      }
+
+      if (controls.enabled) {
+        controls.update();
+      }
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('load', init);
+  </script>
+  <!-- ... your existing page content and scripts ... -->
+
+  <audio id="bg-music" loop>
+  <source src="/football.mp3?v=2" type="audio/mpeg">
+</audio>
+
+  <script>
+    const music = document.getElementById("bg-music");
+    music.volume = 0.1; // 10% volume
+
+    document.addEventListener("click", () => {
+      if (music.paused) {
+        music.play();
+      }
+    }, { once: true });
+  </script>
+</body>
+</html>
+
